@@ -1,0 +1,149 @@
+name: Build
+
+on:
+  push:
+    branches: ['**']
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+
+jobs:
+  build:
+    name: Build and Validate
+    runs-on: windows-latest
+    if: ${{ !startsWith(github.event.head_commit.message, 'Release v') }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Create Unity stub assemblies for CI
+        shell: pwsh
+        run: scripts/create-unity-stubs.ps1
+
+      - name: Restore NuGet packages
+        shell: pwsh
+        run: |
+          $unityPath = "${{ github.workspace }}\src\PainscreekHeadTracking\libs"
+          dotnet restore src/PainscreekHeadTracking/PainscreekHeadTracking.csproj "-p:UnityEnginePath=$unityPath"
+
+      - name: Build Debug
+        shell: pwsh
+        run: |
+          Write-Host "Building debug configuration..." -ForegroundColor Cyan
+          $unityPath = "${{ github.workspace }}\src\PainscreekHeadTracking\libs"
+          dotnet build src/PainscreekHeadTracking/PainscreekHeadTracking.csproj --configuration Debug "-p:UnityEnginePath=$unityPath"
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error::Debug build failed"
+            exit 1
+          }
+
+          Write-Host "Debug build succeeded" -ForegroundColor Green
+
+      - name: Build Release
+        shell: pwsh
+        run: |
+          Write-Host "Building release configuration..." -ForegroundColor Cyan
+          $unityPath = "${{ github.workspace }}\src\PainscreekHeadTracking\libs"
+          dotnet build src/PainscreekHeadTracking/PainscreekHeadTracking.csproj --configuration Release "-p:UnityEnginePath=$unityPath"
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error::Release build failed"
+            exit 1
+          }
+
+          Write-Host "Release build succeeded" -ForegroundColor Green
+
+      - name: Verify build outputs
+        shell: pwsh
+        run: |
+          Write-Host "Verifying build outputs..." -ForegroundColor Cyan
+
+          $requiredFiles = @(
+            "src/PainscreekHeadTracking/bin/Debug/net35/PainscreekHeadTracking.dll",
+            "src/PainscreekHeadTracking/bin/Release/net35/PainscreekHeadTracking.dll"
+          )
+
+          $allExist = $true
+          foreach ($file in $requiredFiles) {
+            if (Test-Path $file) {
+              $size = (Get-Item $file).Length / 1KB
+              Write-Host "  $file ($([math]::Round($size, 2)) KB)" -ForegroundColor Green
+            } else {
+              Write-Host "  Missing: $file" -ForegroundColor Red
+              $allExist = $false
+            }
+          }
+
+          if (-not $allExist) {
+            Write-Host "::error::Some build outputs are missing"
+            exit 1
+          }
+
+          Write-Host "All build outputs verified" -ForegroundColor Green
+
+      - name: Package installer
+        shell: pwsh
+        run: |
+          Write-Host "Packaging installer ZIP..." -ForegroundColor Cyan
+          powershell -ExecutionPolicy Bypass -File scripts/package-release.ps1
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error::Packaging failed"
+            exit 1
+          }
+
+          Write-Host "Package created" -ForegroundColor Green
+
+      - name: Stage installer contents for artifact upload
+        shell: pwsh
+        run: |
+          $stagingDir = "release/artifact-contents"
+          if (Test-Path $stagingDir) { Remove-Item $stagingDir -Recurse -Force }
+          New-Item -ItemType Directory -Path $stagingDir | Out-Null
+
+          $installerZip = Get-ChildItem -Path "release" -Filter "*-installer.zip" | Select-Object -First 1
+          if (-not $installerZip) {
+            Write-Host "::error::No installer ZIP found in release/"
+            exit 1
+          }
+
+          Write-Host "Extracting $($installerZip.Name) to $stagingDir..." -ForegroundColor Cyan
+          Expand-Archive -Path $installerZip.FullName -DestinationPath $stagingDir -Force
+
+          Write-Host "Staged installer contents:" -ForegroundColor Green
+          Get-ChildItem -Path $stagingDir -Recurse | ForEach-Object {
+            $rel = $_.FullName.Substring((Resolve-Path $stagingDir).Path.Length + 1)
+            Write-Host "  $rel"
+          }
+
+      - name: Compute artifact name from ref
+        id: artifact_name
+        shell: pwsh
+        run: |
+          $branch = if ($env:GITHUB_HEAD_REF) { $env:GITHUB_HEAD_REF } else { $env:GITHUB_REF_NAME }
+          $sanitized = $branch -replace '[^a-zA-Z0-9._-]', '-'
+          $name = "PainscreekHeadTracking-$sanitized"
+          echo "name=$name" >> $env:GITHUB_OUTPUT
+          Write-Host "Artifact name: $name"
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.artifact_name.outputs.name }}
+          path: release/artifact-contents/
+          retention-days: 14
+          if-no-files-found: error

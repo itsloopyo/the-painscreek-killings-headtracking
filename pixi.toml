@@ -1,0 +1,34 @@
+[workspace]
+name = "painscreek-killings-head-tracking"
+version = "0.0.0"
+description = "Head tracking mod for The Painscreek Killings using CameraUnlock shared library"
+channels = ["conda-forge"]
+platforms = ["win-64"]
+
+[tasks]
+sync = "git submodule update --remote cameraunlock-core"
+setup = "powershell -ExecutionPolicy Bypass -File scripts/create-unity-stubs.ps1"
+restore = { cmd = "dotnet restore src/PainscreekHeadTracking/PainscreekHeadTracking.csproj", depends-on = ["setup"] }
+build = { cmd = "dotnet build src/PainscreekHeadTracking/PainscreekHeadTracking.csproj -c Release", depends-on = ["restore"] }
+# Bump vendored mod-loader copies to latest upstream within pinned range.
+# Manual; commit the result. CI does not run this.
+update-deps = "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/update-deps.ps1"
+install = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1 Release", depends-on = ["build"] }
+package = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/package-release.ps1", depends-on = ["build"] }
+uninstall = "scripts\\uninstall.cmd"
+vanilla = "powershell -ExecutionPolicy Bypass -File scripts/vanilla.ps1"
+clean = "dotnet clean src/PainscreekHeadTracking/PainscreekHeadTracking.csproj"
+
+# Validate release readiness
+validate-release = "powershell -ExecutionPolicy Bypass -File scripts/validate-release.ps1"
+
+# Full release workflow - creates tag and pushes to trigger CI release
+# Usage: pixi run release <major|minor|patch|X.Y.Z>
+# Example: pixi run release patch
+release = "powershell -ExecutionPolicy Bypass -File scripts/release.ps1"
+
+# Dev-only: patch the installed game's Assembly-CSharp.dll to skip menu fades,
+# disclaimer, and prologue narration on startup. For iteration speed only;
+# not shipped. Use dev-fastboot-restore to revert.
+dev-fastboot = "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-fastboot.ps1"
+dev-fastboot-restore = "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-fastboot-restore.ps1"

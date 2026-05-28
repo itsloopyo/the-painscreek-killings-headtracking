@@ -1,0 +1,146 @@
+name: Release
+run-name: "Release ${{ github.ref_name }}"
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Extract version from tag
+        id: version
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          if ($tag -notmatch '^v(\d+\.\d+\.\d+)$') {
+            Write-Host "::error::Tag format invalid. Use semantic versioning: v1.2.3"
+            exit 1
+          }
+          $version = $matches[1]
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+          echo "tag=$tag" >> $env:GITHUB_OUTPUT
+          Write-Host "Version: $version"
+
+      - name: Validate version matches csproj
+        shell: pwsh
+        run: |
+          Import-Module "./cameraunlock-core/powershell/ReleaseWorkflow.psm1" -Force
+          $csprojVersion = Get-CsprojVersion "src/PainscreekHeadTracking/PainscreekHeadTracking.csproj"
+          $tagVersion = "${{ steps.version.outputs.version }}"
+
+          Write-Host "csproj version: $csprojVersion"
+          Write-Host "Tag version: $tagVersion"
+
+          if ($csprojVersion -ne $tagVersion) {
+            Write-Host "::error::Version mismatch! Tag is v$tagVersion but csproj has $csprojVersion"
+            exit 1
+          }
+
+          Write-Host "Version matches!" -ForegroundColor Green
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Create Unity stub assemblies for CI
+        shell: pwsh
+        run: scripts/create-unity-stubs.ps1
+
+      - name: Restore NuGet packages
+        shell: pwsh
+        run: |
+          $unityPath = "${{ github.workspace }}\src\PainscreekHeadTracking\libs"
+          dotnet restore src/PainscreekHeadTracking/PainscreekHeadTracking.csproj "-p:UnityEnginePath=$unityPath"
+
+      - name: Build release
+        shell: pwsh
+        run: |
+          Write-Host "Building release..." -ForegroundColor Cyan
+          $unityPath = "${{ github.workspace }}\src\PainscreekHeadTracking\libs"
+          dotnet build src/PainscreekHeadTracking/PainscreekHeadTracking.csproj --configuration Release "-p:UnityEnginePath=$unityPath"
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error::Build failed"
+            exit 1
+          }
+
+          Write-Host "Build succeeded" -ForegroundColor Green
+
+      - name: Package release
+        shell: pwsh
+        run: |
+          Write-Host "Packaging release..." -ForegroundColor Cyan
+          powershell -ExecutionPolicy Bypass -File scripts/package-release.ps1
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error::Packaging failed"
+            exit 1
+          }
+
+          Write-Host "Package created" -ForegroundColor Green
+
+      - name: Generate release notes
+        shell: pwsh
+        run: |
+          $artifactPaths = @(
+            "src/PainscreekHeadTracking/",
+            "cameraunlock-core",
+            "scripts/install.cmd",
+            "scripts/uninstall.cmd"
+          )
+
+          & cameraunlock-core/scripts/generate-release-notes.ps1 `
+            -Version "${{ steps.version.outputs.version }}" `
+            -ArtifactPaths $artifactPaths `
+            -ProjectName "Head Tracking for The Painscreek Killings"
+
+      - name: Find release ZIP
+        id: find_zips
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $installerZip = "release/PainscreekHeadTracking-v$version-installer.zip"
+
+          if (-not (Test-Path $installerZip)) {
+            Write-Host "::error::Installer ZIP not found at $installerZip"
+            exit 1
+          }
+
+          echo "installer_zip=$installerZip" >> $env:GITHUB_OUTPUT
+          Write-Host "Found: $installerZip"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $tag = "${{ steps.version.outputs.tag }}"
+          $installerZip = "${{ steps.find_zips.outputs.installer_zip }}"
+
+          Write-Host "Creating GitHub Release for $tag..." -ForegroundColor Cyan
+
+          gh release create $tag `
+            --title "Head Tracking for The Painscreek Killings $tag" `
+            --notes-file "release-notes.txt" `
+            $installerZip
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error::Failed to create GitHub release"
+            exit 1
+          }
+
+          Write-Host "Release created successfully!" -ForegroundColor Green

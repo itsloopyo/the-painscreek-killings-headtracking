@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net35</TargetFramework>
+    <AssemblyName>PainscreekHeadTracking</AssemblyName>
+    <RootNamespace>PainscreekHeadTracking</RootNamespace>
+    <Version>0.0.0</Version>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <OutputType>Library</OutputType>
+    <Authors>itsloopyo</Authors>
+    <Company>itsloopyo</Company>
+    <Copyright>Copyright (c) 2026 itsloopyo</Copyright>
+    <Description>Head tracking mod for The Painscreek Killings using CameraUnlock.Core</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+
+  <!-- CameraUnlock shared library -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\cameraunlock-core\csharp\src\CameraUnlock.Core\CameraUnlock.Core.csproj" />
+  </ItemGroup>
+
+  <!-- Unity type stubs: reference pre-built stub DLLs (from create-unity-stubs.ps1) -->
+  <!-- CRITICAL: Do NOT compile UnityStubs.cs into the mod DLL - types must resolve -->
+  <!-- to the "UnityEngine" assembly so the game's real UnityEngine.dll is used at runtime -->
+  <ItemGroup>
+    <Compile Remove="libs\**" />
+    <None Remove="libs\**" />
+    <Reference Include="UnityEngine">
+      <HintPath>libs\UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>
