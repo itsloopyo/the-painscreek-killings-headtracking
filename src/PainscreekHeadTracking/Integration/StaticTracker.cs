@@ -4,6 +4,7 @@ using CameraUnlock.Core.Data;
 using CameraUnlock.Core.Math;
 using CameraUnlock.Core.Processing;
 using CameraUnlock.Core.Protocol;
+using CameraUnlock.Core.Tracking;
 using UnityEngine;
 
 namespace PainscreekHeadTracking
@@ -33,13 +34,6 @@ namespace PainscreekHeadTracking
         // crosshair projects to a plausible mid-room depth on the very first frame.
         private const float InitialHitDistanceMeters = 2.5f;
 
-        private enum TrackingMode
-        {
-            Both = 0,
-            RotationOnly = 1,
-            PositionOnly = 2
-        }
-
         private const int TrackingModeCount = 3;
 
         // Configuration - loaded from CameraUnlock.Core
@@ -50,7 +44,7 @@ namespace PainscreekHeadTracking
         private static TrackingProcessor? _processor;
         private static PositionProcessor? _positionProcessor;
         private static PositionInterpolator? _positionInterpolator;
-        private static TrackingMode _trackingMode = TrackingMode.Both;
+        private static TrackingMode _trackingMode = TrackingMode.RotationAndPosition;
         private static bool _hasAutoRecentered;
         private static float _autoRecenterTime;
         private static bool _needsStabilizationRecenter;
@@ -242,16 +236,8 @@ namespace PainscreekHeadTracking
                 _positionInterpolator?.Reset();
             }
 
-            Log($"Tracking mode: {DescribeMode(_trackingMode)}");
+            Log($"Tracking mode: {_trackingMode.Description()}");
         }
-
-        private static string DescribeMode(TrackingMode mode) => mode switch
-        {
-            TrackingMode.Both => "rotation + position",
-            TrackingMode.RotationOnly => "rotation only (position disabled)",
-            TrackingMode.PositionOnly => "position only (rotation disabled)",
-            _ => mode.ToString()
-        };
 
         private static void Initialize()
         {
