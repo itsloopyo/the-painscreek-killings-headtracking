@@ -16,6 +16,11 @@ public static class BootstrapPatcher
 
         var resolver = new DefaultAssemblyResolver();
         resolver.AddSearchDirectory(managedDir);
+        var parentDir = Path.GetDirectoryName(managedDir);
+        if (!string.IsNullOrEmpty(parentDir))
+        {
+            resolver.AddSearchDirectory(parentDir);
+        }
 
         var readerParams = new ReaderParameters
         {

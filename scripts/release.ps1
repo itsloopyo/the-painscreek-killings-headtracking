@@ -97,6 +97,10 @@ Write-Host ""
 Write-Host "Updating version to $Version..." -ForegroundColor Cyan
 Set-CsprojVersion $csprojPath $Version
 
+# launcher-manifest.json is stamped with the real version at package time
+# (package-release.ps1), keeping the csproj as the single version source of
+# truth. No mirror needed here.
+
 # Step 2: Release build - abort the release if the version bump doesn't compile,
 # before any tag or commit is created.
 Write-Host "Building (Release)..." -ForegroundColor Cyan

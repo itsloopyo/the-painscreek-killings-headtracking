@@ -1,0 +1,28 @@
+{
+  "schema_version": 2,
+  "mod_info": {
+    "name": "PainscreekHeadTracking",
+    "version": "0.0.0",
+    "game_id": "painscreek-killings"
+  },
+  "strategy": "MonoCecil",
+  "delivery_mode": "manifest",
+
+  "files": [
+    { "source": "mod/PainscreekHeadTracking.dll", "target": "Painscreek_Data/Managed/PainscreekHeadTracking.dll" },
+    { "source": "mod/CameraUnlock.Core.dll", "target": "Painscreek_Data/Managed/CameraUnlock.Core.dll" },
+    { "source": "mod/Mono.Cecil.dll", "target": "Painscreek_Data/Managed/Mono.Cecil.dll" }
+  ],
+
+  "patches": [
+    {
+      "target": "Painscreek_Data/Managed/Assembly-CSharp.dll",
+      "tool": "tools/BootstrapPatcher.exe",
+      "args": [ "{input}", "{output}" ],
+      "marker": "HeadTracking_Patched_Painscreek_v2"
+    }
+  ],
+
+  "runtime_requirements": [],
+  "dependencies": []
+}

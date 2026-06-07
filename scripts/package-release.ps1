@@ -55,6 +55,11 @@ if (-not (Test-Path $patcherSource)) {
     Write-Host "ERROR: Patcher source not found: $patcherSource" -ForegroundColor Red
     exit 1
 }
+$patcherMain = Join-Path $scriptDir "patcher\PatcherMain.cs"
+if (-not (Test-Path $patcherMain)) {
+    Write-Host "ERROR: Patcher wrapper not found: $patcherMain" -ForegroundColor Red
+    exit 1
+}
 
 # Create release directory
 if (-not (Test-Path $releaseDir)) {
@@ -103,6 +108,24 @@ foreach ($script in @("install.cmd", "uninstall.cmd")) {
     Write-Host "  $script" -ForegroundColor Green
 }
 
+# Canonical launcher manifest. Stamp the real release version and drop it at the
+# installer ZIP root. Lopari uses delivery_mode manifest for native deploy;
+# install.cmd remains in the ZIP for users running the package manually.
+$manifestSource = Join-Path $projectRoot "launcher-manifest.json"
+if (-not (Test-Path $manifestSource)) {
+    Write-Host "ERROR: launcher-manifest.json not found at repo root: $manifestSource" -ForegroundColor Red
+    exit 1
+}
+$manifestJson = Get-Content $manifestSource -Raw | ConvertFrom-Json
+$manifestJson.mod_info.version = $version
+$utf8NoBom = New-Object System.Text.UTF8Encoding $false
+[System.IO.File]::WriteAllText(
+    (Join-Path $ghStagingDir "launcher-manifest.json"),
+    ($manifestJson | ConvertTo-Json -Depth 10),
+    $utf8NoBom
+)
+Write-Host "  launcher-manifest.json (v$version)" -ForegroundColor Green
+
 # Copy mod files to mod subfolder. install.cmd reads from %SCRIPT_DIR%mod.
 $modDestDir = Join-Path $ghStagingDir "mod"
 New-Item -ItemType Directory -Path $modDestDir -Force | Out-Null
@@ -117,6 +140,22 @@ Write-Host "  mod/Mono.Cecil.dll" -ForegroundColor Green
 
 Copy-Item $patcherSource -Destination $modDestDir -Force
 Write-Host "  mod/BootstrapPatcher.cs" -ForegroundColor Green
+
+$nativeToolsDir = Join-Path $ghStagingDir "tools"
+New-Item -ItemType Directory -Path $nativeToolsDir -Force | Out-Null
+$csc = Join-Path $env:WINDIR "Microsoft.NET\Framework\v4.0.30319\csc.exe"
+if (-not (Test-Path $csc)) {
+    Write-Host "ERROR: csc.exe not found at $csc" -ForegroundColor Red
+    exit 1
+}
+$patcherExe = Join-Path $nativeToolsDir "BootstrapPatcher.exe"
+& $csc /nologo /target:exe /out:$patcherExe /reference:$cecilPath $patcherSource $patcherMain
+if ($LASTEXITCODE -ne 0) {
+    throw "Failed to compile BootstrapPatcher.exe"
+}
+Copy-Item $cecilPath -Destination $nativeToolsDir -Force
+Write-Host "  tools/BootstrapPatcher.exe" -ForegroundColor Green
+Write-Host "  tools/Mono.Cecil.dll" -ForegroundColor Green
 
 # Copy documentation
 $docFiles = @("README.md", "CHANGELOG.md", "THIRD-PARTY-NOTICES.md")
