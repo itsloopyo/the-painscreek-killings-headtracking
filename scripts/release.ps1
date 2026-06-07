@@ -21,7 +21,10 @@
 #>
 param(
     [Parameter(Position=0)]
-    [string]$Version = ""
+    [string]$Version = "",
+    # Ship a release even when there are no user-facing commits since the
+    # last tag (writes a maintenance changelog entry instead of aborting).
+    [switch]$Force
 )
 
 Set-StrictMode -Version Latest
@@ -30,8 +33,25 @@ $ErrorActionPreference = "Stop"
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $projectDir = Split-Path -Parent $scriptDir
 $csprojPath = Join-Path $projectDir "src\PainscreekHeadTracking\PainscreekHeadTracking.csproj"
+$changelogPath = Join-Path $projectDir "CHANGELOG.md"
 
 Import-Module (Join-Path $projectDir "cameraunlock-core\powershell\ReleaseWorkflow.psm1") -Force
+
+# Mirrors New-ChangelogFromCommits' insertion so a -Force maintenance entry
+# lands in the same place with the same shape.
+function Add-MaintenanceChangelogEntry {
+    param([string]$Path, [string]$NewVersion)
+    $date = Get-Date -Format 'yyyy-MM-dd'
+    $entry = "## [$NewVersion] - $date`n`n### Changed`n`n- Maintenance release (no user-facing changes).`n`n"
+    $changelog = Get-Content $Path -Raw
+    if ($changelog -match '(?s)(# Changelog.*?)(## \[)') {
+        $changelog = $changelog -replace '(?s)(# Changelog.*?\n\n)', "`$1$entry"
+    } else {
+        $changelog = $changelog -replace '(?s)(# Changelog.*?\n)', "`$1$entry"
+    }
+    $changelog = $changelog.TrimEnd() + "`n"
+    Set-Content $Path $changelog -NoNewline
+}
 
 Write-Host "=== Painscreek Killings Head Tracking Release ===" -ForegroundColor Cyan
 Write-Host ""
@@ -93,26 +113,11 @@ Write-Host "Current version: $currentVersion" -ForegroundColor Gray
 Write-Host "New version:     $Version" -ForegroundColor Green
 Write-Host ""
 
-# Step 1: Update version
-Write-Host "Updating version to $Version..." -ForegroundColor Cyan
-Set-CsprojVersion $csprojPath $Version
-
-# launcher-manifest.json is stamped with the real version at package time
-# (package-release.ps1), keeping the csproj as the single version source of
-# truth. No mirror needed here.
-
-# Step 2: Release build - abort the release if the version bump doesn't compile,
-# before any tag or commit is created.
-Write-Host "Building (Release)..." -ForegroundColor Cyan
-pixi run build
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Error: release build failed (exit $LASTEXITCODE). Aborting release." -ForegroundColor Red
-    exit 1
-}
-
-# Step 3: Generate CHANGELOG
+# Step 1: Generate CHANGELOG from commits since last tag. This is the gate
+# that aborts when there are no user-facing commits, so run it BEFORE
+# mutating any version files or building - a failure here then leaves a clean
+# tree instead of stranding a half-applied version bump with no tag.
 Write-Host "Generating CHANGELOG from commits..." -ForegroundColor Cyan
-$changelogPath = Join-Path $projectDir "CHANGELOG.md"
 $hasExistingTags = git tag -l 2>$null
 if (-not $hasExistingTags) {
     # First release - write a basic changelog entry
@@ -121,17 +126,44 @@ if (-not $hasExistingTags) {
     Set-Content $changelogPath $firstEntry
     Write-Host "  First release - wrote initial CHANGELOG entry" -ForegroundColor Gray
 } else {
-    $changelogArgs = @{
-        ChangelogPath = $changelogPath
-        Version = $Version
-        ArtifactPaths = @(
-            "src/",
-            "cameraunlock-core",
-            "scripts/install.cmd",
-            "scripts/uninstall.cmd"
-        )
+    try {
+        $changelogArgs = @{
+            ChangelogPath = $changelogPath
+            Version = $Version
+            ArtifactPaths = @(
+                "src/",
+                "cameraunlock-core",
+                "scripts/install.cmd",
+                "scripts/uninstall.cmd"
+            )
+        }
+        New-ChangelogFromCommits @changelogArgs
+    } catch {
+        if (-not $Force) {
+            Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Host "No user-facing changes to release. Re-run with -Force for a maintenance release." -ForegroundColor Yellow
+            exit 1
+        }
+        Write-Host "No user-facing commits since last tag - writing maintenance entry (-Force)." -ForegroundColor Yellow
+        Add-MaintenanceChangelogEntry -Path $changelogPath -NewVersion $Version
     }
-    New-ChangelogFromCommits @changelogArgs
+}
+
+# Step 2: Update version
+Write-Host "Updating version to $Version..." -ForegroundColor Cyan
+Set-CsprojVersion $csprojPath $Version
+
+# launcher-manifest.json is stamped with the real version at package time
+# (package-release.ps1), keeping the csproj as the single version source of
+# truth. No mirror needed here.
+
+# Step 3: Release build - abort the release if the version bump doesn't compile,
+# before any tag or commit is created.
+Write-Host "Building (Release)..." -ForegroundColor Cyan
+pixi run build
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Error: release build failed (exit $LASTEXITCODE). Aborting release." -ForegroundColor Red
+    exit 1
 }
 
 # Step 4: Commit
