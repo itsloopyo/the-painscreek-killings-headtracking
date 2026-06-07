@@ -15,6 +15,7 @@ set "FRAMEWORK_TYPE=MonoCecil"
 set "MANAGED_SUBFOLDER=Painscreek_Data\Managed"
 set "ASSEMBLY_DLL=Assembly-CSharp.dll"
 set "PATCHER_FILE=BootstrapPatcher.cs"
+set "PATCH_MARKER=HeadTracking_Patched_Painscreek_v2"
 set "MOD_CONTROLS=Controls:&echo   Home/Ctrl+Shift+T - Recenter&echo   End/Ctrl+Shift+Y  - Toggle tracking&echo   PgUp/Ctrl+Shift+G - Cycle tracking mode&echo   PgDn/Ctrl+Shift+H - Toggle yaw mode"
 :: --- END CONFIG BLOCK ---
 

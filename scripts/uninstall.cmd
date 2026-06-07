@@ -18,6 +18,7 @@ set "LEGACY_DLLS="
 :: MonoCecil: used to find + restore the original Assembly-CSharp.dll.
 set "MANAGED_SUBFOLDER=Painscreek_Data\Managed"
 set "ASSEMBLY_DLL=Assembly-CSharp.dll"
+set "PATCH_MARKER=HeadTracking_Patched_Painscreek_v2"
 :: MonoCecil: extra files to also remove from MANAGED_SUBFOLDER (config/log
 :: files left behind by the mod itself).
 set "MANAGED_EXTRAS=HeadTracking.log HeadTracking_BOOT.log"
