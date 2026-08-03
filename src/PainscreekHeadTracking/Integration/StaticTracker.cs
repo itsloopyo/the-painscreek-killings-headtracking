@@ -344,6 +344,14 @@ namespace PainscreekHeadTracking
             _savedLocalRotation = _cameraTransform.localRotation;
             _trackingAppliedThisFrame = true;
 
+            if (_receiver.TryConsumeRecenterRequest())
+            {
+                _hasAutoRecentered = true;
+                _needsStabilizationRecenter = false;
+                Recenter();
+                Log("Recentered by tracker app");
+            }
+
             // Auto-recenter on first connection
             if (!_hasAutoRecentered && _receiver.IsReceiving)
             {
