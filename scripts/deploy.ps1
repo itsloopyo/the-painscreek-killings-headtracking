@@ -34,6 +34,7 @@ $result = Invoke-DevDeployCecil `
     -ManagedSubfolder 'Painscreek_Data\Managed' `
     -ExtraDlls @('CameraUnlock.Core.dll') `
     -GivenPath $GivenPath `
+    -PatchMarker 'HeadTracking_Patched_Painscreek_v2' `
     -Patcher {
         param($assemblyPath)
         Add-Type -Path $cecilPath
