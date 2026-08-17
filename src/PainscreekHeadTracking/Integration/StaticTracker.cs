@@ -48,6 +48,9 @@ namespace PainscreekHeadTracking
         private static bool _hasAutoRecentered;
         private static float _autoRecenterTime;
         private static bool _needsStabilizationRecenter;
+        // Cached connection locality. Selects LocalSmoothing vs RemoteSmoothing and is
+        // re-checked every frame so switching trackers takes effect without a restart.
+        private static bool _cachedIsRemoteConnection;
 
         // Hotkeys (manual handling for Unity 5 compatibility)
         private static KeyCode _recenterKey = KeyCode.Home;
@@ -260,11 +263,13 @@ namespace PainscreekHeadTracking
             _processor = new TrackingProcessor
             {
                 Sensitivity = _config.Sensitivity,
-                SmoothingFactor = _config.Smoothing
+                LocalSmoothing = _config.LocalSmoothing,
+                RemoteSmoothing = _config.RemoteSmoothing
             };
 
-            // Create position processor with Painscreek-tuned defaults
-            var posSettings = PainscreekPositionDefaults.Build();
+            // Create position processor with Painscreek-tuned defaults. Position uses the
+            // same smoothing pair as rotation.
+            var posSettings = PainscreekPositionDefaults.Build(_config.LocalSmoothing, _config.RemoteSmoothing);
             _positionProcessor = new PositionProcessor
             {
                 Settings = posSettings
@@ -370,14 +375,16 @@ namespace PainscreekHeadTracking
                 Log($"Stabilization re-recenter ({StabilizationRecenterDelaySeconds:0.0}s post-connection)");
             }
 
+            UpdateConnectionLocality();
+
             bool rotationActive = _trackingMode != TrackingMode.PositionOnly;
 
             // Get pose from core receiver (includes recenter offset)
             TrackingPose rawPose = _receiver.GetLatestPose();
 
-            // Process through TrackingProcessor (smoothing, sensitivity, limits)
-            // Always apply smoothing baseline - local connections benefit from the same
-            // minimum smoothing floor that remote connections get (prevents raw jitter).
+            // Process through TrackingProcessor (smoothing, sensitivity, limits).
+            // The processor picks LocalSmoothing or RemoteSmoothing from the
+            // connection flag set above.
             TrackingPose processed = _processor.Process(rawPose, deltaTime);
 
             // Get smoothed values (note: pitch needs to be inverted for natural head movement)
@@ -412,6 +419,24 @@ namespace PainscreekHeadTracking
             UpdateReticleOffset(gameCamWorldPos, parent, gamePitch, deltaTime);
 
             GameCursorManager.UpdatePosition(_reticleScreenOffset);
+        }
+
+        // Pushes the receiver's connection locality into both processors when it changes.
+        // The processors select LocalSmoothing or RemoteSmoothing from this flag, so a
+        // user swapping a local OpenTrack instance for a phone on WiFi gets the other
+        // parameter mid-session.
+        private static void UpdateConnectionLocality()
+        {
+            bool isRemoteConnection = _receiver!.IsRemoteConnection;
+            if (isRemoteConnection == _cachedIsRemoteConnection) return;
+
+            _cachedIsRemoteConnection = isRemoteConnection;
+            _processor!.IsRemoteConnection = isRemoteConnection;
+            if (_positionProcessor != null)
+            {
+                _positionProcessor.IsRemoteConnection = isRemoteConnection;
+            }
+            Log($"Connection locality changed: remote={isRemoteConnection}");
         }
 
         private static void ApplyRotation(float yaw, float pitch, float roll, float gamePitch)

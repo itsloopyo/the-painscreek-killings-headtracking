@@ -94,7 +94,7 @@ Two equivalent binding sets - use whichever your keyboard has:
 
 ## Configuration
 
-The mod creates `HeadTracking.cfg` in `Painscreek_Data\Managed\` on first run. Edit it with any text editor; section headers are decorative and can be reorganized freely.
+The mod reads `HeadTracking.cfg` from `Painscreek_Data\Managed\`. Edit it with any text editor; section headers are decorative and can be reorganized freely.
 
 ```ini
 [Network]
@@ -110,7 +110,8 @@ InvertPitch = false
 InvertRoll = false
 
 [Smoothing]
-Smoothing = 0.0             ; 0.0 to 1.0; higher = smoother but more latent (a 0.15 floor is always applied internally)
+LocalSmoothing = 0.0        ; 0.0 to 1.0; used when the tracker runs on this machine
+RemoteSmoothing = 0.15      ; 0.0 to 1.0; used when the tracker is a network device
 
 [AimDecoupling]
 AimDecoupling = true        ; Decouple aim from head look direction
@@ -126,6 +127,11 @@ YawModeKey = PageDown       ; Unity KeyCode name
 WorldSpaceYaw = true        ; true = horizon-locked yaw; false = camera-local yaw
 ```
 
+Smoothing covers both rotation and position. Which of the two values applies is
+decided per connection from the packet source address: a tracker running on this
+PC uses `LocalSmoothing`, a phone or other network device uses `RemoteSmoothing`.
+Switching between them takes effect without restarting the game.
+
 ## Troubleshooting
 
 **Mod not loading:**
@@ -140,7 +146,7 @@ WorldSpaceYaw = true        ; true = horizon-locked yaw; false = camera-local ya
 - Check Windows Firewall is not blocking UDP on port 4242.
 
 **Jittery / unstable tracking:**
-- Raise `Smoothing` in `HeadTracking.cfg` (try 0.3 to 0.5 first).
+- Raise `RemoteSmoothing` (phone/network tracker) or `LocalSmoothing` (tracker on this PC) in `HeadTracking.cfg` (try 0.3 to 0.5 first).
 - For phone trackers on Wi-Fi, lower the phone's send rate, or use a wired connection / hotspot.
 - Lower the per-axis sensitivities if the source signal is noisy.
 
