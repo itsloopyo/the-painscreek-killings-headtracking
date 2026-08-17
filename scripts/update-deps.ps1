@@ -25,7 +25,7 @@ $cecilVersion = '0.11.5'
 $out          = Join-Path $projectDir 'vendor/mono-cecil'
 $outputFile   = "Mono.Cecil.$cecilVersion.nupkg"
 
-Refresh-VendoredLoader `
+Update-VendoredLoader `
     -Name 'mono-cecil' `
     -OutputDir $out `
     -OutputFileName $outputFile `
