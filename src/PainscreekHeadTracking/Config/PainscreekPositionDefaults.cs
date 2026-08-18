@@ -19,7 +19,7 @@ namespace PainscreekHeadTracking
                 0.5f, 0.3f, 0.5f,
                 0.15f, 0.04f, 0.20f, 0.05f,
                 localSmoothing, remoteSmoothing,
-                invertX: true, invertY: false, invertZ: true
+                invertX: true, invertY: false, invertZ: false
             );
         }
     }

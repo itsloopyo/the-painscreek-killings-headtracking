@@ -489,10 +489,15 @@ namespace PainscreekHeadTracking
             float cosYaw = Mathf.Cos(yawRad);
             float sinYaw = Mathf.Sin(yawRad);
 
+            // Negative z is the forward lean throughout the pipeline and the asymmetric
+            // clamp is built on that; Unity's +z is forward, so the flip belongs here rather
+            // than in InvertZ, which inverts ahead of the clamp and swaps the two budgets.
+            float leanForward = -posOffset.Z;
+
             Vector3 rotatedOffset = new Vector3(
-                posOffset.X * cosYaw + posOffset.Z * sinYaw,
+                posOffset.X * cosYaw + leanForward * sinYaw,
                 0f,
-                -posOffset.X * sinYaw + posOffset.Z * cosYaw
+                -posOffset.X * sinYaw + leanForward * cosYaw
             );
 
             // Apply in world space so parent transform scale (which changes
