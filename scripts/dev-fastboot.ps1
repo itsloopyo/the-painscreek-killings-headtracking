@@ -33,9 +33,10 @@
           StartMenu.ContinueGame don't wait on the fade animation before
           unloading the current scene.
 
-    The first run backs up the original to Assembly-CSharp.dll.fastboot-backup.
-    Subsequent runs restore that backup first, then re-apply, so iterating on
-    the patch set is a no-fuss `pixi run dev-fastboot`.
+    Assembly-CSharp.dll.fastboot-backup holds the assembly as it was before
+    fast-boot, so it tracks whatever `pixi run install` last deployed. A run
+    that finds the live assembly already fast-booted restores that backup and
+    re-applies, so iterating on the patch set is a no-fuss `pixi run dev-fastboot`.
 
     To revert, run scripts/dev-fastboot-restore.ps1 or pixi run dev-fastboot-restore.
 
@@ -53,6 +54,7 @@ $ErrorActionPreference = 'Stop'
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $projectRoot = Split-Path -Parent $scriptDir
 . (Join-Path $scriptDir 'common.ps1')
+Import-Module (Join-Path $projectRoot 'cameraunlock-core\powershell\ModDeployment.psm1') -Force
 
 if (-not $GamePath) {
     $GamePath = Resolve-GamePath
@@ -70,12 +72,24 @@ if (-not (Test-Path $asmPath)) {
 }
 
 $backupPath = "$asmPath.fastboot-backup"
-if (Test-Path $backupPath) {
+# Prefix, so it matches every fast-boot generation: the backup must never be
+# captured from an assembly that some earlier marker version already patched.
+$fastBootMarker = 'HeadTracking_FastBoot'
+
+if (Test-FileContainsMarker -FilePath $asmPath -Marker $fastBootMarker) {
+    if (-not (Test-Path $backupPath)) {
+        Write-Error "Assembly-CSharp.dll is fast-booted but $backupPath is missing, so the pre-fast-boot assembly cannot be recovered. Verify game files via Steam, then re-run 'pixi run install'."
+        exit 1
+    }
     Copy-Item -Path $backupPath -Destination $asmPath -Force
     Write-Host "  Restored from backup before re-patching -> $backupPath" -ForegroundColor DarkGray
 } else {
+    # Refreshed on every run that finds a clean baseline, not just the first.
+    # A backup kept from before the last `pixi run install` carries that
+    # install's bootstrap patch, and restoring it would put the stale bootstrap
+    # back over the freshly deployed one.
     Copy-Item -Path $asmPath -Destination $backupPath -Force
-    Write-Host "  Backed up original -> $backupPath" -ForegroundColor Green
+    Write-Host "  Captured pre-fast-boot baseline -> $backupPath" -ForegroundColor Green
 }
 
 $toolsDir = Join-Path $projectRoot 'tools'

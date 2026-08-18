@@ -22,6 +22,30 @@ $projectRoot = Split-Path -Parent $scriptDir
 
 Import-Module (Join-Path $projectRoot "cameraunlock-core\powershell\DevDeploy.psm1") -Force
 Import-Module (Join-Path $projectRoot "cameraunlock-core\powershell\ModDeployment.psm1") -Force
+. (Join-Path $scriptDir "common.ps1")
+
+# The dev fast-boot patch (scripts/dev-fastboot.ps1) is additive just like the
+# bootstrap patch, so it carries the same corrupt-backup trap: a fast-booted
+# assembly captured as .original is restored as "vanilla" forever after.
+# Invoke-DevDeployCecil's own guard only knows the head-tracking marker, so the
+# second marker is checked here, where the fast-boot tool lives.
+$fastBootMarker = 'HeadTracking_FastBoot'
+$gamePath = if ($GivenPath) { $GivenPath } else { Resolve-GamePath }
+if ($gamePath) {
+    $assemblyPath = Join-Path (Get-ManagedPath -GamePath $gamePath) 'Assembly-CSharp.dll'
+    $originalPath = "$assemblyPath.original"
+    if (Test-Path -LiteralPath $originalPath) {
+        if (Test-FileContainsMarker -FilePath $originalPath -Marker $fastBootMarker) {
+            throw "Assembly-CSharp.dll.original carries the dev fast-boot patch (corrupt backup). Verify game files via Steam, delete the .original, and re-run."
+        }
+        if ((Test-Path -LiteralPath $assemblyPath) -and (Test-FileContainsMarker -FilePath $assemblyPath -Marker $fastBootMarker)) {
+            Write-Host "Fast-boot patch present - this deploy resets Assembly-CSharp.dll from .original, so re-run 'pixi run dev-fastboot' afterwards." -ForegroundColor Yellow
+        }
+    } elseif ((Test-Path -LiteralPath $assemblyPath) -and (Test-FileContainsMarker -FilePath $assemblyPath -Marker $fastBootMarker)) {
+        throw "Assembly-CSharp.dll carries the dev fast-boot patch and no .original exists, so this deploy would capture it as the pristine backup. Run 'pixi run dev-fastboot-restore' first."
+    }
+}
+
 $toolsDir = Join-Path $projectRoot "tools"
 $cecilPath = & (Join-Path $scriptDir "ensure-cecil.ps1") -ToolsDir $toolsDir
 
