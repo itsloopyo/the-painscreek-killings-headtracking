@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.2] - 2026-08-18
+
+### Fixed
+
+- migrate to the per-connection smoothing pair in cameraunlock-core
+- match stub member kinds to the shipped Unity assemblies
+
 ## [Unreleased]
 
 ### Changed
