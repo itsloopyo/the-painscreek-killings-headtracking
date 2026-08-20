@@ -8,7 +8,7 @@ namespace PainscreekHeadTracking
     /// - UDP receiving
     /// - Camera rotation
     /// - Moving the REAL game cursor via RectTransform
-    /// - Hotkeys (Home=recenter, End=toggle)
+    /// - Hotkeys (End=toggle)
     /// </summary>
     public sealed class HeadTrackingMod : MonoBehaviour
     {

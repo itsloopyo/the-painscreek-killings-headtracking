@@ -18,13 +18,6 @@ namespace PainscreekHeadTracking
     {
         private const float HotkeyCooldownSeconds = 0.3f;
         private const float ErrorLogThrottleSeconds = 5f;
-        private const float DiagIntervalSeconds = 5f;
-        private const int InitialDiagBurstCount = 20;
-
-        // Trackers can drift for ~half a second after first connecting (face trackers
-        // warm up; phone trackers settle their IMU bias). Re-recenter after this delay
-        // so the user's center pose isn't pinned to a transient initial reading.
-        private const float StabilizationRecenterDelaySeconds = 0.5f;
 
         // Raycast-based reticle distance
         private const float MaxRaycastDistance = 1000f;
@@ -45,15 +38,11 @@ namespace PainscreekHeadTracking
         private static PositionProcessor? _positionProcessor;
         private static PositionInterpolator? _positionInterpolator;
         private static TrackingMode _trackingMode = TrackingMode.RotationAndPosition;
-        private static bool _hasAutoRecentered;
-        private static float _autoRecenterTime;
-        private static bool _needsStabilizationRecenter;
         // Cached connection locality. Selects LocalSmoothing vs RemoteSmoothing and is
         // re-checked every frame so switching trackers takes effect without a restart.
         private static bool _cachedIsRemoteConnection;
 
         // Hotkeys (manual handling for Unity 5 compatibility)
-        private static KeyCode _recenterKey = KeyCode.Home;
         private static KeyCode _toggleKey = KeyCode.End;
         private static KeyCode _cycleModeKey = KeyCode.PageUp;
         private static KeyCode _yawModeKey = KeyCode.PageDown;
@@ -77,8 +66,7 @@ namespace PainscreekHeadTracking
         private static bool _directPitchUnavailableWarningLogged;
 
         // Diagnostics
-        private static float _lastDiagTime = float.NegativeInfinity;
-        private static int _diagCount;
+        private static string _lastDiagLine = string.Empty;
 
         // Screen dimension cache (updated in ApplyToCamera, reused by GetAimScreenPosition)
         private static int _cachedScreenWidth;
@@ -136,7 +124,7 @@ namespace PainscreekHeadTracking
                 }
 
                 float now = Time.realtimeSinceStartup;
-                LogDiagnosticsIfDue(now);
+                LogDiagnostics(now);
                 HandleHotkeys(now);
 
                 // Check game state (rate-limited internally). Reuse the frame's already
@@ -159,7 +147,7 @@ namespace PainscreekHeadTracking
                 if (frame == _lastAppliedFrame) return;
                 _lastAppliedFrame = frame;
 
-                ApplyToCamera(now);
+                ApplyToCamera();
             }
             catch (Exception ex)
             {
@@ -171,16 +159,17 @@ namespace PainscreekHeadTracking
             }
         }
 
-        private static void LogDiagnosticsIfDue(float now)
+        // Written on change only. HeadTracking.log is the mod's own file and the whole
+        // of what a user sends in; a periodic heartbeat buries the startup chain under
+        // hours of one unchanging fact.
+        private static void LogDiagnostics(float now)
         {
-            _diagCount++;
-            // Log every call up to InitialDiagBurstCount (helps catch early init issues),
-            // then settle to every DiagIntervalSeconds afterwards.
-            if (_diagCount > InitialDiagBurstCount && now - _lastDiagTime <= DiagIntervalSeconds) return;
-
-            _lastDiagTime = now;
             bool isReceiving = _receiver?.IsReceiving ?? false;
-            Log($"[DIAG #{_diagCount}] isReceiving={isReceiving}, camera={(_cameraTransform != null)}, isGameplay={GameStateDetector.IsGameplay}, time={now:F2}s");
+            string line = $"[DIAG] isReceiving={isReceiving}, camera={(_cameraTransform != null)}, isGameplay={GameStateDetector.IsGameplay}";
+            if (line == _lastDiagLine) return;
+
+            _lastDiagLine = line;
+            Log($"{line}, time={now:F2}s");
         }
 
         private static void HandleHotkeys(float now)
@@ -189,16 +178,11 @@ namespace PainscreekHeadTracking
 
             // Resolve chord modifiers once, but only check chord-letter GetKeyDown if
             // the modifiers are held - keeps the common (no-modifier) frame path at
-            // 2 GetKey + 4 GetKeyDown calls instead of 4+4+4.
+            // 2 GetKey + 3 GetKeyDown calls instead of 3+3+3.
             bool chord = (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl))
                       && (Input.GetKey(KeyCode.LeftShift)   || Input.GetKey(KeyCode.RightShift));
 
-            if (Pressed(_recenterKey, chord, KeyCode.T))
-            {
-                _lastHotkeyTime = now;
-                Recenter();
-            }
-            else if (Pressed(_toggleKey, chord, KeyCode.Y))
+            if (Pressed(_toggleKey, chord, KeyCode.Y))
             {
                 _lastHotkeyTime = now;
                 _enabled = !_enabled;
@@ -278,11 +262,10 @@ namespace PainscreekHeadTracking
             Log($"Position settings: SensX={posSettings.SensitivityX}, SensY={posSettings.SensitivityY}, SensZ={posSettings.SensitivityZ}");
 
             // Parse hotkeys from config
-            _recenterKey = ParseKeyCode(_config.RecenterKeyName, KeyCode.Home);
             _toggleKey = ParseKeyCode(_config.ToggleKeyName, KeyCode.End);
             _yawModeKey = ParseKeyCode(_config.YawModeKeyName, KeyCode.PageDown);
             _worldSpaceYaw = _config.WorldSpaceYaw;
-            Log($"Hotkeys: Toggle={_toggleKey}, Recenter={_recenterKey}, YawMode={_yawModeKey}");
+            Log($"Hotkeys: Toggle={_toggleKey}, YawMode={_yawModeKey}");
             Log($"Yaw mode: {(_worldSpaceYaw ? "world-space (horizon-locked)" : "camera-local")}");
 
             // Start core OpenTrack receiver
@@ -323,7 +306,7 @@ namespace PainscreekHeadTracking
             _cameraTransform = _mainCamera != null ? _mainCamera.transform : null;
         }
 
-        private static void ApplyToCamera(float realtime)
+        private static void ApplyToCamera()
         {
             // Camera not found yet is expected during loading - skip this frame
             if (_cameraTransform == null) return;
@@ -349,37 +332,11 @@ namespace PainscreekHeadTracking
             _savedLocalRotation = _cameraTransform.localRotation;
             _trackingAppliedThisFrame = true;
 
-            if (_receiver.TryConsumeRecenterRequest())
-            {
-                _hasAutoRecentered = true;
-                _needsStabilizationRecenter = false;
-                Recenter();
-                Log("Recentered by tracker app");
-            }
-
-            // Auto-recenter on first connection
-            if (!_hasAutoRecentered && _receiver.IsReceiving)
-            {
-                _hasAutoRecentered = true;
-                _needsStabilizationRecenter = true;
-                _autoRecenterTime = realtime;
-                Recenter();
-                Log($"Connection detected (remote={_receiver.IsRemoteConnection}) - auto-recentered");
-            }
-
-            // Re-recenter after a short delay to compensate for face-tracker warm-up drift
-            if (_needsStabilizationRecenter && realtime - _autoRecenterTime >= StabilizationRecenterDelaySeconds)
-            {
-                _needsStabilizationRecenter = false;
-                Recenter();
-                Log($"Stabilization re-recenter ({StabilizationRecenterDelaySeconds:0.0}s post-connection)");
-            }
-
             UpdateConnectionLocality();
 
             bool rotationActive = _trackingMode != TrackingMode.PositionOnly;
 
-            // Get pose from core receiver (includes recenter offset)
+            // The tracker owns the centre; the pose is applied as sent.
             TrackingPose rawPose = _receiver.GetLatestPose();
 
             // Process through TrackingProcessor (smoothing, sensitivity, limits).
@@ -577,18 +534,6 @@ namespace PainscreekHeadTracking
             if (gamePitch > 180f) gamePitch -= 360f;
             roll = 0f;
             return gamePitch;
-        }
-
-        private static void Recenter()
-        {
-            _receiver?.Recenter();
-            _processor?.Reset();
-            if (_receiver != null)
-            {
-                _positionProcessor?.SetCenter(_receiver.GetLatestPosition());
-            }
-            _positionInterpolator?.Reset();
-            Log("Recentered");
         }
 
         private static void ToggleYawMode()

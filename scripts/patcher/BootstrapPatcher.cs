@@ -83,6 +83,8 @@ public static class BootstrapPatcher
             var fileType = mscorlib.MainModule.Types.First(t => t.FullName == "System.IO.File");
             var appendAllTextMethod = fileType.Methods.First(m => m.Name == "AppendAllText" && m.Parameters.Count == 2);
             var appendAllTextRef = assembly.MainModule.ImportReference(appendAllTextMethod);
+            var writeAllTextMethod = fileType.Methods.First(m => m.Name == "WriteAllText" && m.Parameters.Count == 2);
+            var writeAllTextRef = assembly.MainModule.ImportReference(writeAllTextMethod);
 
             var stringType = mscorlib.MainModule.Types.First(t => t.FullName == "System.String");
             var concatMethod = stringType.Methods.First(m => m.Name == "Concat" && m.Parameters.Count == 2
@@ -151,11 +153,13 @@ public static class BootstrapPatcher
             il.Append(il.Create(OpCodes.Call, combineRef));
             il.Append(il.Create(OpCodes.Stloc_1));
 
+            // Initialize is one-shot per process, so this is the first write of the
+            // run: truncate, or the boot log a user sends carries every earlier session.
             il.Append(il.Create(OpCodes.Ldloc_0));
             il.Append(il.Create(OpCodes.Ldstr, "\\HeadTracking_BOOT.log"));
             il.Append(il.Create(OpCodes.Call, concatRef));
             il.Append(il.Create(OpCodes.Ldstr, "Loading PainscreekHeadTracking.dll...\n"));
-            il.Append(il.Create(OpCodes.Call, appendAllTextRef));
+            il.Append(il.Create(OpCodes.Call, writeAllTextRef));
 
             il.Append(il.Create(OpCodes.Ldloc_1));
             il.Append(il.Create(OpCodes.Call, loadFromRef));
@@ -211,7 +215,7 @@ public static class BootstrapPatcher
             il.Append(il.Create(OpCodes.Call, concatRef));
             il.Append(il.Create(OpCodes.Ldstr, "\n"));
             il.Append(il.Create(OpCodes.Call, concatRef));
-            il.Append(il.Create(OpCodes.Call, appendAllTextRef));
+            il.Append(il.Create(OpCodes.Call, writeAllTextRef));
 
             il.Append(il.Create(OpCodes.Leave, leaveTarget));
 

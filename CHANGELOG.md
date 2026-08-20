@@ -9,8 +9,26 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- `HeadTracking_BOOT.log` and `%TEMP%\HeadTracking_BOOT_ERROR.log` now start
+  fresh on every launch. They were appended to, so the boot log a user sends in
+  carried every previous session's lines and the current run had to be picked
+  out of the pile.
+- an error inside the camera restore hook is logged once per distinct message
+  instead of every frame. That path runs in `OnPostRender`, so a persistent
+  failure wrote roughly 17 MB an hour into `HeadTracking.log` at 60fps.
+
 ### Changed
 
+- the `[DIAG]` status line in `HeadTracking.log` is written when the state
+  changes rather than every 5 seconds. A one-hour session used to add ~68 KB
+  restating the same three flags.
+- Removed recentring from the mod entirely, along with the `Home` / `Ctrl+Shift+T`
+  hotkey and the `RecenterKey` config entry. Every tracker app centres itself, so a
+  mod-side centre was a second centre in series with the tracker's own and the two
+  drifted apart. The tracker pose is now applied as sent. Centre in your tracker app
+  instead: opentrack's Center bind, or the CENTER button in Headcam.
 - replace the single `Smoothing` config key with `LocalSmoothing` (default 0.0) and `RemoteSmoothing` (default 0.15), selected per connection from the packet source address and covering both rotation and position
 - remove the hidden 0.15 baseline smoothing floor, so a tracker running on this PC now gets zero-latency tracking by default
 

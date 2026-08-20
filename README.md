@@ -78,10 +78,13 @@ Two equivalent binding sets - use whichever your keyboard has:
 
 | Action              | Nav-cluster | Chord           |
 |---------------------|-------------|-----------------|
-| Recenter            | `Home`      | `Ctrl+Shift+T`  |
 | Toggle tracking     | `End`       | `Ctrl+Shift+Y`  |
 | Cycle tracking mode | `Page Up`   | `Ctrl+Shift+G`  |
 | Toggle yaw mode     | `Page Down` | `Ctrl+Shift+H`  |
+
+There is no recenter key. The mod applies the pose your tracker sends as-is, so
+centre it in the tracker app: opentrack's Center bind, or the CENTER button in
+Headcam.
 
 `Page Up` / `Ctrl+Shift+G` cycles tracking mode:
 
@@ -119,7 +122,6 @@ ShowReticle = true          ; Draw an aim reticle that tracks the clean aim poin
 ReticleColor = 1,1,1,1      ; Reticle color as R,G,B,A (default white opaque)
 
 [Keybindings]
-RecenterKey = Home          ; Unity KeyCode name
 ToggleKey = End             ; Unity KeyCode name
 YawModeKey = PageDown       ; Unity KeyCode name
 
@@ -142,7 +144,8 @@ Switching between them takes effect without restarting the game.
 **No tracking response:**
 - Verify your tracker (OpenTrack or phone app) is running and shows movement in its own preview.
 - Confirm UDP output is set to `127.0.0.1:4242` (or to your PC's LAN IP for direct phone-to-PC).
-- Press `End` to make sure tracking is enabled, then `Home` to recenter.
+- Press `End` to make sure tracking is enabled.
+- If the view is off-centre, centre it in your tracker app rather than in the game.
 - Check Windows Firewall is not blocking UDP on port 4242.
 
 **Jittery / unstable tracking:**

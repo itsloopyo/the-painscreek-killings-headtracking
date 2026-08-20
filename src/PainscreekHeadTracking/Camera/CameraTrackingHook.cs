@@ -16,6 +16,10 @@ namespace PainscreekHeadTracking
     // GameObject - that's the only reason this component is here at all.
     public sealed class CameraTrackingHook : MonoBehaviour
     {
+        // OnPostRender runs every frame, so a failure here repeats every frame. Logged
+        // once per distinct message: unthrottled this wrote ~17 MB an hour at 60fps.
+        private string? _lastLoggedError;
+
         private void OnPostRender()
         {
             try
@@ -24,6 +28,8 @@ namespace PainscreekHeadTracking
             }
             catch (Exception ex)
             {
+                if (ex.Message == _lastLoggedError) return;
+                _lastLoggedError = ex.Message;
                 ModLoader.Log("[CameraTrackingHook] OnPostRender error: " + ex.Message);
             }
         }
