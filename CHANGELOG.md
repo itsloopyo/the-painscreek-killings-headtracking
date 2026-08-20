@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.0] - 2026-08-20
+
+### Added
+
+- drop mod-side recentring and quieten the logs
+
+### Fixed
+
+- give the forward lean its own travel budget again
+
 ## [0.0.2] - 2026-08-18
 
 ### Fixed
