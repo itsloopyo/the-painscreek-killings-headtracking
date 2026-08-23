@@ -66,8 +66,9 @@ namespace PainscreekHeadTracking
 
                 float pitch = (float)value;
 
-                // The game negates pitch when CameraInvertY is true:
-                //   Euler(CameraInvertY ? -verticalRotation : verticalRotation, 0, 0)
+                // Observed behaviour: with CameraInvertY set, the sign of the
+                // applied pitch is the opposite of the stored field, so mirror
+                // it here to recover the pitch the camera actually renders with.
                 if (!ReferenceEquals(_cameraInvertYField, null))
                 {
                     object? invertValue = _cameraInvertYField.GetValue(null);

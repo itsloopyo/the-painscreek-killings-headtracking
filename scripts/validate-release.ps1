@@ -11,7 +11,16 @@ Write-Host ""
 
 $allPassed = $true
 
-foreach ($file in @("README.md")) {
+# LICENSE, THIRD-PARTY-NOTICES.md and the cameraunlock-core licence are the
+# copyright notices MIT requires to accompany the binaries in the release ZIP.
+# A release ZIP shipped without them is a licence violation, not a packaging nit.
+$requiredDocs = @(
+    "README.md",
+    "LICENSE",
+    "THIRD-PARTY-NOTICES.md",
+    "cameraunlock-core\LICENSE"
+)
+foreach ($file in $requiredDocs) {
     Write-Host "Checking $file..." -ForegroundColor Gray
     if (Test-Path (Join-Path $projectRoot $file)) {
         Write-Host "  $file exists" -ForegroundColor Green
@@ -39,6 +48,37 @@ if (Test-Path $dllPath) {
 } else {
     Write-Host "  WARNING: PainscreekHeadTracking.dll not found" -ForegroundColor Yellow
     $allPassed = $false
+}
+
+# The packaged ZIP is what users actually receive, so verify the notices are
+# inside it rather than trusting that the packager copied them.
+$latestZip = Get-ChildItem -Path (Join-Path $projectRoot "release") -Filter "*-installer.zip" -File -ErrorAction SilentlyContinue |
+    Sort-Object LastWriteTime -Descending | Select-Object -First 1
+if ($latestZip) {
+    Write-Host "Checking licence files inside $($latestZip.Name)..." -ForegroundColor Gray
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $zip = [System.IO.Compression.ZipFile]::OpenRead($latestZip.FullName)
+    try {
+        $entries = $zip.Entries | ForEach-Object { $_.FullName.Replace([char]92, [char]47) }
+        $requiredInZip = @(
+            "LICENSE",
+            "THIRD-PARTY-NOTICES.md",
+            "licenses/cameraunlock-core-LICENSE.txt",
+            "vendor/mono-cecil/LICENSE"
+        )
+        foreach ($entry in $requiredInZip) {
+            if ($entries -contains $entry) {
+                Write-Host "  $entry present" -ForegroundColor Green
+            } else {
+                Write-Host "  ERROR: $entry missing from the release ZIP" -ForegroundColor Red
+                $allPassed = $false
+            }
+        }
+    } finally {
+        $zip.Dispose()
+    }
+} else {
+    Write-Host "  WARNING: no installer ZIP in release/ - run 'pixi run package' to validate its contents" -ForegroundColor Yellow
 }
 
 Write-Host ""

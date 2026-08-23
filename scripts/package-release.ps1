@@ -157,15 +157,31 @@ Copy-Item $cecilPath -Destination $nativeToolsDir -Force
 Write-Host "  tools/BootstrapPatcher.exe" -ForegroundColor Green
 Write-Host "  tools/Mono.Cecil.dll" -ForegroundColor Green
 
-# Copy documentation
-$docFiles = @("README.md", "CHANGELOG.md", "THIRD-PARTY-NOTICES.md")
+# Copy documentation. LICENSE and THIRD-PARTY-NOTICES.md carry the copyright
+# notices that MIT requires to accompany every binary in this ZIP, so a missing
+# one is a licence violation and has to fail the build. A Test-Path guard here
+# would turn that into a green build shipping unlicensed binaries.
+$docFiles = @("README.md", "LICENSE", "CHANGELOG.md", "THIRD-PARTY-NOTICES.md")
 foreach ($doc in $docFiles) {
     $docPath = Join-Path $projectRoot $doc
-    if (Test-Path $docPath) {
-        Copy-Item $docPath -Destination $ghStagingDir -Force
-        Write-Host "  $doc" -ForegroundColor Green
+    if (-not (Test-Path $docPath)) {
+        throw "Required document not found: $docPath"
     }
+    Copy-Item $docPath -Destination $ghStagingDir -Force
+    Write-Host "  $doc" -ForegroundColor Green
 }
+
+# CameraUnlock.Core.dll is MIT under a different copyright holder from this
+# repo's own LICENSE, so its notice has to travel with the binary in its own
+# right rather than relying on ours.
+$licensesStagingDir = Join-Path $ghStagingDir "licenses"
+New-Item -ItemType Directory -Path $licensesStagingDir -Force | Out-Null
+$coreLicense = Join-Path $projectRoot "cameraunlock-core\LICENSE"
+if (-not (Test-Path $coreLicense)) {
+    throw "cameraunlock-core LICENSE not found at $coreLicense. Run 'git submodule update --init'."
+}
+Copy-Item $coreLicense -Destination (Join-Path $licensesStagingDir "cameraunlock-core-LICENSE.txt") -Force
+Write-Host "  licenses/cameraunlock-core-LICENSE.txt" -ForegroundColor Green
 
 # Ship the vendored loader source (committed .nupkg + LICENSE + README) for
 # transparency and license attribution. Cecil install.cmd ships the
@@ -174,10 +190,11 @@ $vendorStagingDir = Join-Path $ghStagingDir "vendor\mono-cecil"
 New-Item -ItemType Directory -Path $vendorStagingDir -Force | Out-Null
 foreach ($file in @($cecilNupkg.Name, 'LICENSE', 'README.md')) {
     $src = Join-Path $vendorCecilDir $file
-    if (Test-Path $src) {
-        Copy-Item -Path $src -Destination $vendorStagingDir -Force
-        Write-Host "  vendor/mono-cecil/$file" -ForegroundColor Green
+    if (-not (Test-Path $src)) {
+        throw "Vendored Mono.Cecil file missing: $src"
     }
+    Copy-Item -Path $src -Destination $vendorStagingDir -Force
+    Write-Host "  vendor/mono-cecil/$file" -ForegroundColor Green
 }
 
 Copy-SharedBundle -StagingDir $ghStagingDir

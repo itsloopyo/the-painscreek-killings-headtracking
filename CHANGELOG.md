@@ -1,5 +1,31 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- ship `LICENSE`, `licenses/cameraunlock-core-LICENSE.txt` and a complete
+  `THIRD-PARTY-NOTICES.md` in the installer ZIP. `CameraUnlock.Core.dll` is MIT
+  under a different copyright holder from this repo's own LICENSE and was being
+  redistributed with its notice nowhere in the package, and our own MIT notice
+  was not shipping either. The packager now throws on a missing licence file
+  instead of skipping it, and `validate-release` checks for all four inside the
+  built ZIP.
+- correct `THIRD-PARTY-NOTICES.md`: the Mono.Cecil version rendered as a literal
+  `:` placeholder, and cameraunlock-core was described as compiled into
+  `PainscreekHeadTracking.dll` when it ships as its own DLL.
+
+### Removed
+
+- stop tracking `tools/Mono.Cecil.dll`. It is extracted from the vendored
+  `.nupkg` by `scripts/ensure-cecil.ps1`, so the committed copy was a duplicate
+  build artifact; `tools/` is now gitignored.
+
+### Changed
+
+- pin every GitHub Action to a commit SHA with a trailing version comment
+  instead of a mutable tag.
+
 ## [0.1.0] - 2026-08-20
 
 ### Added

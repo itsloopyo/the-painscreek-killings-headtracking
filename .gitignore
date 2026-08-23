@@ -12,6 +12,11 @@ packages/
 dist/
 release/
 
+# Generated tooling. tools/Mono.Cecil.dll is extracted from the vendored
+# .nupkg by scripts/ensure-cecil.ps1; the package under vendor/ is the only
+# copy that belongs in git.
+tools/
+
 # IDE
 .vs/
 .vscode/
