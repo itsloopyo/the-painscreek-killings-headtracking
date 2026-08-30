@@ -209,7 +209,6 @@ Run `uninstall.cmd` from the release folder. This removes the mod DLLs and resto
 ```bash
 git clone --recurse-submodules https://github.com/itsloopyo/the-painscreek-killings-headtracking.git
 cd the-painscreek-killings-headtracking
-powershell -ExecutionPolicy Bypass -File scripts/create-unity-stubs.ps1
 pixi run build
 pixi run package
 ```

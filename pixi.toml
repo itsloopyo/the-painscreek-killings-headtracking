@@ -7,7 +7,12 @@ platforms = ["win-64"]
 
 [tasks]
 sync = "git submodule update --remote cameraunlock-core"
-setup = "powershell -ExecutionPolicy Bypass -File scripts/create-unity-stubs.ps1"
+# Unity reference stubs, compiled from the shared sources in the core submodule.
+# net35 means pre-2017.3 Unity, so no UnityEngine.InputLegacyModule is produced -
+# Input lives in UnityEngine.dll on that engine version, which is exactly what this
+# game's Managed folder holds. No UnityEngine.UI.dll: the mod reaches the game's
+# cursor Text through reflection and references no uGUI type at compile time.
+setup = 'powershell -ExecutionPolicy Bypass -Command "& cameraunlock-core/csharp/stubs/build-unity-stubs.ps1 -OutputPath src/PainscreekHeadTracking/libs -TargetFramework net35 -SkipUI"'
 restore = { cmd = "dotnet restore src/PainscreekHeadTracking/PainscreekHeadTracking.csproj", depends-on = ["setup"] }
 build = { cmd = "dotnet build src/PainscreekHeadTracking/PainscreekHeadTracking.csproj -c Release", depends-on = ["restore"] }
 # Checks that every member reference the build emits resolves against the

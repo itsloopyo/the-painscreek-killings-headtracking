@@ -22,9 +22,9 @@
     <ProjectReference Include="..\..\cameraunlock-core\csharp\src\CameraUnlock.Core\CameraUnlock.Core.csproj" />
   </ItemGroup>
 
-  <!-- Unity type stubs: reference pre-built stub DLLs (from create-unity-stubs.ps1) -->
-  <!-- CRITICAL: Do NOT compile UnityStubs.cs into the mod DLL - types must resolve -->
-  <!-- to the "UnityEngine" assembly so the game's real UnityEngine.dll is used at runtime -->
+  <!-- Unity type stubs, built into libs/ by `pixi run setup` from the shared sources -->
+  <!-- in cameraunlock-core/csharp/stubs. Referenced, never compiled in: the types must -->
+  <!-- resolve to the "UnityEngine" assembly so the game's real one binds at runtime -->
   <ItemGroup>
     <Compile Remove="libs\**" />
     <None Remove="libs\**" />

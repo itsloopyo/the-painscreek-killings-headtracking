@@ -39,9 +39,9 @@ jobs:
           run-install: false
 
       # Build + package through the SAME command a developer runs locally. Every
-      # build dependency (Unity stubs) is produced by scripts/create-unity-stubs.ps1
-      # inside the pixi task chain - no build logic lives in this workflow, so
-      # local and CI can't drift.
+      # build dependency (Unity stubs) is produced by
+      # cameraunlock-core/csharp/stubs/build-unity-stubs.ps1 inside the pixi task
+      # chain - no build logic lives in this workflow, so local and CI can't drift.
       - name: Build and package
         shell: pwsh
         run: pixi run package
