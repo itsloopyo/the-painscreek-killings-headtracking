@@ -16,10 +16,12 @@ if (-not $versionMatch) {
 }
 $version = $versionMatch.Matches[0].Groups[1].Value
 
+# scripts/package-release.ps1 builds the installer ZIP only.
 Publish-NightlyBuild `
     -ModId 'painscreek-killings' `
     -ModName 'PainscreekHeadTracking' `
     -Version $version `
     -ProjectRoot $ProjectRoot `
     -BuildCommand 'pixi run build' `
+    -NoNexusZip `
     -AllowDirty:$AllowDirty
