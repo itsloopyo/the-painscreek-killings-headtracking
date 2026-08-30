@@ -12,7 +12,7 @@ The Painscreek Killings.
 | Component | Version | Licence | How it ships |
 |-----------|---------|---------|--------------|
 | Mono.Cecil | 0.11.5 | MIT | `mod/Mono.Cecil.dll`, `tools/Mono.Cecil.dll`, and the source package at `vendor/mono-cecil/`. Licence at `vendor/mono-cecil/LICENSE` and reproduced below |
-| cameraunlock-core | `b107dc6` | MIT | `mod/CameraUnlock.Core.dll`. Licence at `licenses/cameraunlock-core-LICENSE.txt` and reproduced below |
+| cameraunlock-core | `67a82e3` | MIT | `mod/CameraUnlock.Core.dll`. Licence at `licenses/cameraunlock-core-LICENSE.txt` and reproduced below |
 | PainscreekHeadTracking | see `CHANGELOG.md` | MIT | `mod/PainscreekHeadTracking.dll`. Licence at `LICENSE` |
 | Unity | n/a | n/a | Not bundled; compiled against signature-only stubs, never redistributed |
 | OpenTrack | n/a | ISC | Not bundled; UDP wire-protocol interoperability only |
@@ -73,7 +73,7 @@ with the binary in its own right. The installer ZIP also carries it verbatim as
 `licenses/cameraunlock-core-LICENSE.txt`.
 
 - Upstream: https://github.com/itsloopyo/cameraunlock-core
-- Pinned commit: `b107dc64b6bfe43b25d9c2bf867a6d31ce6b07e0`
+- Pinned commit: `67a82e334bcf32979d17965eab4b0f37a48a6ad0`
 
 ```
 MIT License
