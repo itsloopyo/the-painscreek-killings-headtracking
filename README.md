@@ -1,8 +1,8 @@
 # The Painscreek Killings Head Tracking
 
-Decoupled head tracking for The Painscreek Killings: your head moves the camera while the mouse keeps independent control of aim and interaction text, no VR headset required.
+![The Painscreek Killings running with this mod](https://raw.githubusercontent.com/itsloopyo/the-painscreek-killings-headtracking/main/assets/readme-clip.gif)
 
-<!-- ![Mod GIF](https://raw.githubusercontent.com/itsloopyo/the-painscreek-killings-headtracking/main/assets/readme-clip.gif) -->
+An unofficial head tracking mod for The Painscreek Killings that moves the view with your head while your mouse keeps control of the cursor, driven by OpenTrack over UDP, with no VR headset required.
 
 ## Features
 
@@ -12,7 +12,7 @@ Decoupled head tracking for The Painscreek Killings: your head moves the camera 
 ## Requirements
 
 - [The Painscreek Killings](https://store.steampowered.com/app/252270/The_Painscreek_Killings/) on Steam
-- An OpenTrack-compatible tracker: [OpenTrack](https://github.com/opentrack/opentrack) with a webcam, a phone app (e.g. SmoothTrack), or dedicated hardware
+- A tracker that sends OpenTrack UDP pose data to port 4242: [OpenTrack](https://github.com/opentrack/opentrack) with a webcam, or a phone app with an OpenTrack UDP output
 - Windows 10 or 11 (64-bit)
 
 ## Installation
@@ -41,36 +41,64 @@ For users who prefer to place files by hand. This mod uses a Mono.Cecil bootstra
 
 ## Setting Up OpenTrack
 
-1. Install [OpenTrack](https://github.com/opentrack/opentrack).
-2. Set the output to **UDP over network**.
-3. Set the remote IP to `127.0.0.1` and the port to `4242`.
-4. Start tracking before launching the game.
+The mod listens for OpenTrack pose data on UDP port `4242`, on every network
+interface. One datagram is six little-endian 64-bit floats in the order
+`x, y, z, yaw, pitch, roll`: position in centimetres, rotation in degrees, 48
+bytes in total. Anything that sends that to that port drives the view.
+OpenTrack's **UDP over network** output sends exactly this, and the steps below
+set it up.
 
-### VR Headset Setup
+1. Install [OpenTrack](https://github.com/opentrack/opentrack/releases).
+2. Pick a tracker under **Input**, using the notes below.
+3. Set **Output** to **UDP over network**, host `127.0.0.1`, port `4242`.
+4. Press **Start**. Tracking and the game can start in either order.
 
-A VR headset makes an excellent tracker since it reports head pose at high rate and low latency.
+### Webcam
 
-1. Connect your headset to the PC over Air Link (Quest) or Virtual Desktop, and start SteamVR.
-2. In OpenTrack, pick **Tracker: SteamVR** as the input.
-3. Set output to UDP over network as above and start tracking.
+OpenTrack ships a `neuralnet tracker` input that reads a plain webcam. Select it
+under **Input**, pick your camera in its settings, and use the output settings
+above. How well it tracks depends on your camera and your lighting, so try it
+before buying anything.
 
-### Webcam Setup
+### Phone
 
-OpenTrack ships a `neuralnet tracker` input that runs head-pose estimation against any webcam.
+A phone app can reach the mod directly, with no OpenTrack on the PC, if it sends
+the datagram described above. Point it at this PC's IP address (run `ipconfig`
+to find it) on port `4242`. Not every phone tracker speaks this protocol, so
+check yours for an OpenTrack or UDP output option first. [Headcam](https://headcam.app)
+sends it, and I wrote it so decent tracking is free for anyone who already owns
+a phone.
 
-1. Pick **Tracker: neuralnet tracker** as the input.
-2. Click the input gear, select your webcam, and confirm the preview window shows your face.
-3. Set output to UDP over network as above and start tracking.
+Sending direct works when the app filters its own signal on the device. The
+mod's smoothing is sized to take the edge off a clean signal rather than to
+rescue a noisy one, so a raw feed sent direct will jitter. If it does, point the
+app at OpenTrack's **UDP over network** *input* on some other port, say 5252,
+and let OpenTrack's filters and curves clean it up before its output forwards to
+`127.0.0.1:4242`.
 
-### Phone App Setup
+Anything arriving from outside `127.0.0.0/8` counts as a remote connection and
+is smoothed with `RemoteSmoothing` rather than `LocalSmoothing`. That includes a
+tracker on this very PC that sends to the machine's own LAN address, because the
+mod reads the source address and not the machine.
 
-If your tracking app already smooths and centers, you can send directly from the phone to the mod on port 4242, no OpenTrack on PC required.
+### Headset or other hardware
 
-1. Install an OpenTrack-compatible tracking app (e.g. SmoothTrack, FaceTrackNoIR companion, OpenSeeFace).
-2. Point it at your PC's IP address (run `ipconfig` to find it) on port `4242`.
-3. Set the protocol to OpenTrack/UDP.
+If your device has an OpenTrack input driver, select it under **Input** and use
+the same output settings. OpenTrack's own **Input** list is the authority on
+what it can read; the mod only ever sees what OpenTrack sends.
 
-**With OpenTrack as a relay (optional):** if you want curve mapping or visual preview, route through OpenTrack. Set OpenTrack's input to `UDP over network` on a different port (e.g. `5252`), set its output to `127.0.0.1:4242`, and point your phone app at port `5252`. Make sure your firewall allows incoming UDP on the input port.
+### Centring
+
+Centring belongs to your tracker. The mod subtracts no centre of its own: it
+applies the pose it receives exactly as it arrives, so a stream of zeros holds
+the view where the game itself puts it. Press the centre control in your tracker
+(OpenTrack's **Center** bind, or the CENTER button in Headcam) and the tracker
+zeroes its own output, which leaves the view centred with the mod doing nothing.
+
+That is why there is no centre hotkey here and nothing to re-centre in game. Two
+centres in series would drift apart, because each side re-centres at moments the
+other cannot see, and you would end up pressing twice to centre once. If the
+view sits off to one side, centre it in the tracker.
 
 ## Controls
 
