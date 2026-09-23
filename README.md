@@ -8,6 +8,7 @@ An unofficial head tracking mod for The Painscreek Killings that moves the view 
 
 - **Decoupled look and aim** - head tracking moves the camera; aim stays on your mouse
 - **6DOF positional tracking** - lean and peek with head position
+- **Works with any OpenTrack compatible tracker** - free options available for PC, iOS and Android
 
 ## Requirements
 
@@ -16,6 +17,13 @@ An unofficial head tracking mod for The Painscreek Killings that moves the view 
 - Windows 10 or 11 (64-bit)
 
 ## Installation
+
+### Lopari
+
+Download [Lopari](https://lopari.app), choose **The Painscreek Killings**, and click
+**Play with head tracking**.
+
+### Standalone Installer
 
 1. Download the `-installer.zip` from the [Releases page](https://github.com/itsloopyo/the-painscreek-killings-headtracking/releases).
 2. Extract the ZIP anywhere.
