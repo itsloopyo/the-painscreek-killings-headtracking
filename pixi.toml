@@ -25,7 +25,11 @@ verify-refs = { cmd = "powershell -ExecutionPolicy Bypass -File cameraunlock-cor
 # Manual; commit the result. CI does not run this.
 update-deps = "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/update-deps.ps1"
 install = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1 Release", depends-on = ["build"] }
-package = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/package-release.ps1", depends-on = ["build"] }
+# The config tests, among them the differential test in tests/config_differential, which holds
+# the frozen legacy import to the dev pre-release's reader on the README's example files and on
+# core's mutation corpus.
+test = { cmd = "dotnet test tests/PainscreekHeadTracking.Tests/PainscreekHeadTracking.Tests.csproj -c Release", depends-on = ["build"] }
+package = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/package-release.ps1", depends-on = ["test"] }
 uninstall = "scripts\\uninstall.cmd"
 vanilla = "powershell -ExecutionPolicy Bypass -File scripts/vanilla.ps1"
 clean = "dotnet clean src/PainscreekHeadTracking/PainscreekHeadTracking.csproj"

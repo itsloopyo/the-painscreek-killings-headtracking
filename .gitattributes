@@ -95,3 +95,9 @@ docker-compose*.yml text eol=lf
 *.jar binary
 *.war binary
 *.ear binary
+
+# Differential test inputs are compared byte for byte, line endings included.
+tests/config_differential/data/** -text
+
+# The oracle is core's published source, kept byte for byte.
+tests/config_differential/oracle/*.cs -text

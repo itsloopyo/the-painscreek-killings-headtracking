@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The dev pre-release's config reader: core's HeadTrackingConfigData and ConfigParsingUtils as
+       cameraunlock-core 34656598 shipped them, byte for byte, compiled on their own so the test
+       project reaches them through the extern alias "oracle" and never mistakes them for the
+       current core's classes of the same names. -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <AssemblyName>PainscreekHeadTracking.ConfigOracle</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <IsPackable>false</IsPackable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- CS0436: the two copies take precedence over the current core's classes of the same full
+         names, which is the point of carrying them. CS1591: core's XML comments are copied as
+         they were. -->
+    <NoWarn>$(NoWarn);CS0436;CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\cameraunlock-core\csharp\src\CameraUnlock.Core\CameraUnlock.Core.csproj" />
+  </ItemGroup>
+</Project>

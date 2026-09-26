@@ -5,6 +5,7 @@ using CameraUnlock.Core.Math;
 using CameraUnlock.Core.Processing;
 using CameraUnlock.Core.Protocol;
 using CameraUnlock.Core.Tracking;
+using PainscreekHeadTracking.Legacy;
 using UnityEngine;
 
 namespace PainscreekHeadTracking
@@ -238,9 +239,8 @@ namespace PainscreekHeadTracking
             GameReflectionHelper.SetLogger(Log);
             GameCursorManager.SetLogger(Log);
 
-            // Load configuration using CameraUnlock.Core
             string configPath = HeadTrackingConfigData.GetDefaultConfigPath(typeof(StaticTracker).Assembly);
-            _config = HeadTrackingConfigData.LoadFromFile(configPath, Log);
+            _config = ToRuntime(LegacyConfigReader.Read(configPath, Log, out _, out _));
             Log($"Config loaded: Port={_config.UdpPort}, Sensitivity=({_config.Sensitivity.Yaw}, {_config.Sensitivity.Pitch}, {_config.Sensitivity.Roll})");
 
             // Create tracking processor with config settings
@@ -262,8 +262,8 @@ namespace PainscreekHeadTracking
             Log($"Position settings: SensX={posSettings.SensitivityX}, SensY={posSettings.SensitivityY}, SensZ={posSettings.SensitivityZ}");
 
             // Parse hotkeys from config
-            _toggleKey = ParseKeyCode(_config.ToggleKeyName, KeyCode.End);
-            _yawModeKey = ParseKeyCode(_config.YawModeKeyName, KeyCode.PageDown);
+            _toggleKey = LegacyKeyCodes.Parse(_config.ToggleKeyName, LegacyKeyCodes.ToggleDefault, Log);
+            _yawModeKey = LegacyKeyCodes.Parse(_config.YawModeKeyName, LegacyKeyCodes.YawModeDefault, Log);
             _worldSpaceYaw = _config.WorldSpaceYaw;
             Log($"Hotkeys: Toggle={_toggleKey}, YawMode={_yawModeKey}");
             Log($"Yaw mode: {(_worldSpaceYaw ? "world-space (horizon-locked)" : "camera-local")}");
@@ -277,27 +277,25 @@ namespace PainscreekHeadTracking
             }
         }
 
-        private static KeyCode ParseKeyCode(string keyName, KeyCode defaultKey)
+        private static HeadTrackingConfigData ToRuntime(LegacyConfig legacy)
         {
-            try
+            return new HeadTrackingConfigData
             {
-                KeyCode parsed = (KeyCode)Enum.Parse(typeof(KeyCode), keyName, true);
-                // Enum.Parse silently accepts numeric strings ("999") and returns
-                // an undefined enum value, which Input.GetKeyDown then treats as
-                // a dead key. Reject anything not a real KeyCode member.
-                if (!Enum.IsDefined(typeof(KeyCode), parsed))
-                {
-                    Log($"WARNING: Key name '{keyName}' is not a defined KeyCode, using default: {defaultKey}");
-                    return defaultKey;
-                }
-                return parsed;
-            }
-            catch (ArgumentException)
-            {
-                // Invalid key name in config - use default and warn user
-                Log($"WARNING: Invalid key name '{keyName}' in config, using default: {defaultKey}");
-                return defaultKey;
-            }
+                UdpPort = legacy.UdpPort,
+                EnableOnStartup = legacy.EnableOnStartup,
+                Sensitivity = new SensitivitySettings(
+                    legacy.YawSensitivity, legacy.PitchSensitivity, legacy.RollSensitivity,
+                    legacy.InvertYaw, legacy.InvertPitch, legacy.InvertRoll),
+                RecenterKeyName = legacy.RecenterKeyName,
+                ToggleKeyName = legacy.ToggleKeyName,
+                YawModeKeyName = legacy.YawModeKeyName,
+                WorldSpaceYaw = legacy.WorldSpaceYaw,
+                AimDecouplingEnabled = legacy.AimDecouplingEnabled,
+                ShowDecoupledReticle = legacy.ShowDecoupledReticle,
+                ReticleColorRgba = legacy.ReticleColorRgba,
+                LocalSmoothing = legacy.LocalSmoothing,
+                RemoteSmoothing = legacy.RemoteSmoothing,
+            };
         }
 
         private static void EnsureCamera()

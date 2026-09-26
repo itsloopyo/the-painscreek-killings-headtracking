@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- net48, because xunit does not run on the mod's net35. The net35 Unity stubs load in it
+         unchanged. -->
+    <TargetFramework>net48</TargetFramework>
+    <AssemblyName>PainscreekHeadTracking.Tests</AssemblyName>
+    <RootNamespace>PainscreekHeadTracking.Tests</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>annotations</Nullable>
+    <IsPackable>false</IsPackable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\cameraunlock-core\csharp\src\CameraUnlock.Core\CameraUnlock.Core.csproj" />
+    <ProjectReference Include="..\config_differential\oracle\Oracle.csproj" Aliases="oracle" />
+  </ItemGroup>
+
+  <!-- The Unity stubs `pixi run setup` stages for the mod, for KeyCode. -->
+  <ItemGroup>
+    <Reference Include="UnityEngine">
+      <HintPath>..\..\src\PainscreekHeadTracking\libs\UnityEngine.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <!-- The mod's Unity-light config sources, compiled in rather than referenced: a reference to the
+       mod would pull its game-facing code into this net48 host. -->
+  <ItemGroup>
+    <Compile Include="..\..\src\PainscreekHeadTracking\Legacy\*.cs" Link="Legacy\%(Filename)%(Extension)" />
+    <Compile Include="..\config_differential\**\*.cs" Exclude="..\config_differential\oracle\**" Link="config_differential\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\..\cameraunlock-core\csharp\testing\IniMutations.cs" Link="IniMutations.cs" />
+  </ItemGroup>
+</Project>
