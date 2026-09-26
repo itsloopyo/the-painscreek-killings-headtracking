@@ -18,7 +18,7 @@ An unofficial head tracking mod for The Painscreek Killings that moves the view 
 
 ## Requirements
 
-- [The Painscreek Killings](https://store.steampowered.com/app/252270/The_Painscreek_Killings/) on Steam
+- [The Painscreek Killings](https://store.steampowered.com/app/624270/The_Painscreek_Killings/) on Steam
 - A tracker that sends OpenTrack UDP pose data to port 4242: [OpenTrack](https://github.com/opentrack/opentrack) with a webcam, or a phone app with an OpenTrack UDP output
 - Windows 10 or 11 (64-bit)
 
@@ -313,7 +313,7 @@ MIT. See [LICENSE](LICENSE). Third-party components are listed in [THIRD-PARTY-N
 
 ## Credits
 
-- [EQ Studios](https://store.steampowered.com/app/252270/The_Painscreek_Killings/) - The Painscreek Killings
+- [EQ Studios](https://store.steampowered.com/app/624270/The_Painscreek_Killings/) - The Painscreek Killings
 - [OpenTrack](https://github.com/opentrack/opentrack) - head tracking software and UDP wire protocol
 - [Mono.Cecil](https://github.com/jbevain/cecil) - .NET assembly manipulation library used by the bootstrap patcher
 
