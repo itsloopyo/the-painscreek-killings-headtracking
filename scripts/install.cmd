@@ -7,7 +7,7 @@
 :: --- CONFIG BLOCK ---
 set "GAME_ID=painscreek-killings"
 set "MOD_DISPLAY_NAME=Painscreek Head Tracking"
-set "MOD_DLLS=PainscreekHeadTracking.dll CameraUnlock.Core.dll Mono.Cecil.dll"
+set "MOD_DLLS=PainscreekHeadTracking.dll CameraUnlock.Core.dll CameraUnlock.Core.Unity.dll Mono.Cecil.dll"
 set "MOD_INTERNAL_NAME=PainscreekHeadTracking"
 set "MOD_VERSION=0.1.0"
 set "STATE_FILE=.headtracking-state.json"

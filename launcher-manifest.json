@@ -11,6 +11,7 @@
   "files": [
     { "source": "mod/PainscreekHeadTracking.dll", "target": "Painscreek_Data/Managed/PainscreekHeadTracking.dll" },
     { "source": "mod/CameraUnlock.Core.dll", "target": "Painscreek_Data/Managed/CameraUnlock.Core.dll" },
+    { "source": "mod/CameraUnlock.Core.Unity.dll", "target": "Painscreek_Data/Managed/CameraUnlock.Core.Unity.dll" },
     { "source": "mod/Mono.Cecil.dll", "target": "Painscreek_Data/Managed/Mono.Cecil.dll" }
   ],
 

@@ -20,6 +20,9 @@
   <!-- CameraUnlock shared library -->
   <ItemGroup>
     <ProjectReference Include="..\..\cameraunlock-core\csharp\src\CameraUnlock.Core\CameraUnlock.Core.csproj" />
+    <ProjectReference Include="..\..\cameraunlock-core\csharp\src\CameraUnlock.Core.Unity\CameraUnlock.Core.Unity.csproj">
+      <AdditionalProperties>UnityEnginePath=$(MSBuildThisFileDirectory)libs</AdditionalProperties>
+    </ProjectReference>
   </ItemGroup>
 
   <!-- Unity type stubs, built into libs/ by `pixi run setup` from the shared sources -->

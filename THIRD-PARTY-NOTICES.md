@@ -12,7 +12,7 @@ The Painscreek Killings.
 | Component | Version | Licence | How it ships |
 |-----------|---------|---------|--------------|
 | Mono.Cecil | 0.11.5 | MIT | `mod/Mono.Cecil.dll`, `tools/Mono.Cecil.dll`, and the source package at `vendor/mono-cecil/`. Licence at `vendor/mono-cecil/LICENSE` and reproduced below |
-| cameraunlock-core | `3f3a821` | MIT | `mod/CameraUnlock.Core.dll`. Licence at `licenses/cameraunlock-core-LICENSE.txt` and reproduced below |
+| cameraunlock-core | `3f3a821` | MIT | `mod/CameraUnlock.Core.dll` and `mod/CameraUnlock.Core.Unity.dll`. Licence at `licenses/cameraunlock-core-LICENSE.txt` and reproduced below |
 | PainscreekHeadTracking | see `CHANGELOG.md` | MIT | `mod/PainscreekHeadTracking.dll`. Licence at `LICENSE` |
 | Unity | n/a | n/a | Not bundled; compiled against signature-only stubs, never redistributed |
 | OpenTrack | n/a | ISC | Not bundled; UDP wire-protocol interoperability only |
@@ -65,11 +65,12 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ## cameraunlock-core
 
-Git submodule at `cameraunlock-core/`, built into `CameraUnlock.Core.dll`, which
-ships in the installer ZIP at `mod/CameraUnlock.Core.dll` and is deployed to the
-game's `Managed/` folder. It is our own code, but it is MIT under a different
-copyright holder from this repository's own LICENSE, so its notice has to travel
-with the binary in its own right. The installer ZIP also carries it verbatim as
+Git submodule at `cameraunlock-core/`, built into `CameraUnlock.Core.dll` and
+`CameraUnlock.Core.Unity.dll`, which ship in the installer ZIP at
+`mod/CameraUnlock.Core.dll` and `mod/CameraUnlock.Core.Unity.dll` and are
+deployed to the game's `Managed/` folder. It is our own code, but it is MIT
+under a different copyright holder from this repository's own LICENSE, so its
+notice has to travel with the binaries in their own right. The installer ZIP also carries it verbatim as
 `licenses/cameraunlock-core-LICENSE.txt`.
 
 - Upstream: https://github.com/itsloopyo/cameraunlock-core

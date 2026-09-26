@@ -29,7 +29,7 @@ $version = Get-CsprojVersion $csprojPath
 Write-Host "Version: $version" -ForegroundColor Cyan
 Write-Host ""
 
-$modDlls = @("PainscreekHeadTracking.dll", "CameraUnlock.Core.dll")
+$modDlls = @("PainscreekHeadTracking.dll", "CameraUnlock.Core.dll", "CameraUnlock.Core.Unity.dll")
 
 # Validate build output exists
 foreach ($dll in $modDlls) {

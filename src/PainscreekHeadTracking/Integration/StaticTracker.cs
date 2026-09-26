@@ -1,11 +1,14 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
 using CameraUnlock.Core.Config;
 using CameraUnlock.Core.Data;
+using CameraUnlock.Core.Input;
 using CameraUnlock.Core.Math;
 using CameraUnlock.Core.Processing;
 using CameraUnlock.Core.Protocol;
 using CameraUnlock.Core.Tracking;
-using PainscreekHeadTracking.Legacy;
+using CameraUnlock.Core.Unity.Extensions;
 using UnityEngine;
 
 namespace PainscreekHeadTracking
@@ -30,8 +33,8 @@ namespace PainscreekHeadTracking
 
         private const int TrackingModeCount = 3;
 
-        // Configuration - loaded from CameraUnlock.Core
-        private static HeadTrackingConfigData? _config;
+        private static PainscreekConfig? _config;
+        private static ConfigOwner<PainscreekConfig>? _configOwner;
 
         // Core components from CameraUnlock.Core
         private static OpenTrackReceiver? _receiver;
@@ -43,10 +46,9 @@ namespace PainscreekHeadTracking
         // re-checked every frame so switching trackers takes effect without a restart.
         private static bool _cachedIsRemoteConnection;
 
-        // Hotkeys (manual handling for Unity 5 compatibility)
-        private static KeyCode _toggleKey = KeyCode.End;
-        private static KeyCode _cycleModeKey = KeyCode.PageUp;
-        private static KeyCode _yawModeKey = KeyCode.PageDown;
+        private static KeyBinding[] _toggleKeys = new KeyBinding[0];
+        private static KeyBinding[] _cycleModeKeys = new KeyBinding[0];
+        private static KeyBinding[] _yawModeKeys = new KeyBinding[0];
         private static float _lastHotkeyTime;
 
         // Yaw mode: true = horizon-locked (yaw around world up), false = camera-local
@@ -62,7 +64,7 @@ namespace PainscreekHeadTracking
 
         // State
         private static bool _initialized;
-        private static bool _enabled = true;
+        private static bool _enabled;
         private static float _lastLogTime = float.NegativeInfinity;
         private static bool _directPitchUnavailableWarningLogged;
 
@@ -176,14 +178,10 @@ namespace PainscreekHeadTracking
         private static void HandleHotkeys(float now)
         {
             if (now - _lastHotkeyTime <= HotkeyCooldownSeconds) return;
+            // Short-circuits the key lookups on the frames where no key went down.
+            if (!Input.anyKeyDown) return;
 
-            // Resolve chord modifiers once, but only check chord-letter GetKeyDown if
-            // the modifiers are held - keeps the common (no-modifier) frame path at
-            // 2 GetKey + 3 GetKeyDown calls instead of 3+3+3.
-            bool chord = (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl))
-                      && (Input.GetKey(KeyCode.LeftShift)   || Input.GetKey(KeyCode.RightShift));
-
-            if (Pressed(_toggleKey, chord, KeyCode.Y))
+            if (KeyBindingInput.IsTriggered(_toggleKeys))
             {
                 _lastHotkeyTime = now;
                 _enabled = !_enabled;
@@ -193,20 +191,17 @@ namespace PainscreekHeadTracking
                     ResetCamera();
                 }
             }
-            else if (Pressed(_cycleModeKey, chord, KeyCode.G))
+            else if (KeyBindingInput.IsTriggered(_cycleModeKeys))
             {
                 _lastHotkeyTime = now;
                 CycleTrackingMode();
             }
-            else if (Pressed(_yawModeKey, chord, KeyCode.H))
+            else if (KeyBindingInput.IsTriggered(_yawModeKeys))
             {
                 _lastHotkeyTime = now;
                 ToggleYawMode();
             }
         }
-
-        private static bool Pressed(KeyCode primary, bool chordHeld, KeyCode chordLetter) =>
-            Input.GetKeyDown(primary) || (chordHeld && Input.GetKeyDown(chordLetter));
 
         private static void CycleTrackingMode()
         {
@@ -225,6 +220,15 @@ namespace PainscreekHeadTracking
             }
 
             Log($"Tracking mode: {_trackingMode.Description()}");
+
+            bool rotation;
+            bool position;
+            TrackingModeChannels.Encode(_trackingMode, out rotation, out position);
+            SaveConfig(c =>
+            {
+                c.RotationEnabled = rotation;
+                c.PositionEnabled = position;
+            });
         }
 
         private static void Initialize()
@@ -239,14 +243,13 @@ namespace PainscreekHeadTracking
             GameReflectionHelper.SetLogger(Log);
             GameCursorManager.SetLogger(Log);
 
-            string configPath = HeadTrackingConfigData.GetDefaultConfigPath(typeof(StaticTracker).Assembly);
-            _config = ToRuntime(LegacyConfigReader.Read(configPath, Log, out _, out _));
-            Log($"Config loaded: Port={_config.UdpPort}, Sensitivity=({_config.Sensitivity.Yaw}, {_config.Sensitivity.Pitch}, {_config.Sensitivity.Roll})");
+            _config = LoadConfig();
 
-            // Create tracking processor with config settings
+            // Every published build shipped identity rotation sensitivity and no axis flips; the
+            // settings are gone.
             _processor = new TrackingProcessor
             {
-                Sensitivity = _config.Sensitivity,
+                Sensitivity = SensitivitySettings.Default,
                 LocalSmoothing = _config.LocalSmoothing,
                 RemoteSmoothing = _config.RemoteSmoothing
             };
@@ -261,11 +264,15 @@ namespace PainscreekHeadTracking
             _positionInterpolator = new PositionInterpolator();
             Log($"Position settings: SensX={posSettings.SensitivityX}, SensY={posSettings.SensitivityY}, SensZ={posSettings.SensitivityZ}");
 
-            // Parse hotkeys from config
-            _toggleKey = LegacyKeyCodes.Parse(_config.ToggleKeyName, LegacyKeyCodes.ToggleDefault, Log);
-            _yawModeKey = LegacyKeyCodes.Parse(_config.YawModeKeyName, LegacyKeyCodes.YawModeDefault, Log);
+            _toggleKeys = ParseKeys("ToggleKey", _config.ToggleKeyName);
+            _cycleModeKeys = ParseKeys("CycleTrackingModeKey", _config.CycleTrackingModeKeyName);
+            _yawModeKeys = ParseKeys("YawModeKey", _config.YawModeKeyName);
             _worldSpaceYaw = _config.WorldSpaceYaw;
-            Log($"Hotkeys: Toggle={_toggleKey}, YawMode={_yawModeKey}");
+            _enabled = _config.EnableOnStartup;
+            // The pair always names a mode: the table reads a pair that names none as its default.
+            _trackingMode = TrackingModeChannels.Decode(_config.RotationEnabled, _config.PositionEnabled)!.Value;
+            Log($"Hotkeys: Toggle={_config.ToggleKeyName}; CycleTrackingMode={_config.CycleTrackingModeKeyName}; YawMode={_config.YawModeKeyName}");
+            Log($"Tracking {(_enabled ? "on" : "off")} at start, mode: {_trackingMode.Description()}");
             Log($"Yaw mode: {(_worldSpaceYaw ? "world-space (horizon-locked)" : "camera-local")}");
 
             // Start core OpenTrack receiver
@@ -277,25 +284,59 @@ namespace PainscreekHeadTracking
             }
         }
 
-        private static HeadTrackingConfigData ToRuntime(LegacyConfig legacy)
+        /// <summary>
+        /// The settings live in CameraUnlock.ini beside this DLL, in Painscreek_Data\Managed, read
+        /// and written by core's config owner, with rows set to default following the player's
+        /// Defaults.ini. While CameraUnlock.ini is absent the owner imports HeadTracking.cfg, the
+        /// file every earlier build read, through the frozen reader in Legacy/, and never writes it.
+        /// Runs on the main thread, where the hotkeys that save also run.
+        /// </summary>
+        private static PainscreekConfig LoadConfig()
         {
-            return new HeadTrackingConfigData
+            string location = typeof(StaticTracker).Assembly.Location;
+            string dir = Path.GetDirectoryName(location)
+                ?? throw new InvalidOperationException("PainscreekHeadTracking.dll has no folder: " + location);
+            // The mod draws no messages of its own, so the player's line goes to the log.
+            _configOwner = new ConfigOwner<PainscreekConfig>(
+                PainscreekConfig.OwnerOptions(dir, DefaultsFile.PerUser(), message => Log("[Config] " + message)));
+
+            ConfigLoadResult<PainscreekConfig> loaded = _configOwner.Load();
+            foreach (string line in loaded.Log) Log("[Config] " + line);
+            Log("[Config] " + Path.Combine(dir, PainscreekConfig.FileName) + ": " + loaded.Status);
+            return loaded.Config;
+        }
+
+        // The table's hotkey codec has read every list the file holds, so a list that does not
+        // parse reaches here only from a legacy import the owner deferred: a key the key table
+        // names no key for, which the import writes as it was. The dev build still fired the chord
+        // beside such a key, so the items that parse are bound and the rest are logged.
+        private static KeyBinding[] ParseKeys(string key, string text)
+        {
+            KeyBinding[] bindings;
+            string error;
+            if (KeyBindings.TryParse(text, out bindings, out error)) return bindings;
+
+            var kept = new List<KeyBinding>();
+            foreach (string item in text.Split(','))
             {
-                UdpPort = legacy.UdpPort,
-                EnableOnStartup = legacy.EnableOnStartup,
-                Sensitivity = new SensitivitySettings(
-                    legacy.YawSensitivity, legacy.PitchSensitivity, legacy.RollSensitivity,
-                    legacy.InvertYaw, legacy.InvertPitch, legacy.InvertRoll),
-                RecenterKeyName = legacy.RecenterKeyName,
-                ToggleKeyName = legacy.ToggleKeyName,
-                YawModeKeyName = legacy.YawModeKeyName,
-                WorldSpaceYaw = legacy.WorldSpaceYaw,
-                AimDecouplingEnabled = legacy.AimDecouplingEnabled,
-                ShowDecoupledReticle = legacy.ShowDecoupledReticle,
-                ReticleColorRgba = legacy.ReticleColorRgba,
-                LocalSmoothing = legacy.LocalSmoothing,
-                RemoteSmoothing = legacy.RemoteSmoothing,
-            };
+                if (KeyBindings.TryParse(item, out bindings, out error)) kept.AddRange(bindings);
+                else Log("[Config] [Hotkeys] " + key + ": " + error + ", so it is not bound this session");
+            }
+            return kept.ToArray();
+        }
+
+        /// <summary>
+        /// Called after the new value is already applied. A save that fails is logged, the owner's
+        /// reason reaches the log through the status sink, and the session keeps the new value.
+        /// </summary>
+        private static void SaveConfig(Action<PainscreekConfig> change)
+        {
+            ConfigSaveResult saved = _configOwner!.Save(change);
+            foreach (string line in saved.Log) Log("[Config] " + line);
+            if (saved.Status != ConfigSaveStatus.Saved)
+            {
+                Log("[Config] " + saved.Status + ": the change applies to this session only.");
+            }
         }
 
         private static void EnsureCamera()
@@ -536,10 +577,12 @@ namespace PainscreekHeadTracking
 
         private static void ToggleYawMode()
         {
-            _worldSpaceYaw = !_worldSpaceYaw;
-            Log(_worldSpaceYaw
+            bool worldSpace = !_worldSpaceYaw;
+            _worldSpaceYaw = worldSpace;
+            Log(worldSpace
                 ? "Yaw mode: world-space (horizon-locked)"
                 : "Yaw mode: camera-local (rolls/leans at extreme pitches)");
+            SaveConfig(c => c.WorldSpaceYaw = worldSpace);
         }
 
         /// <summary>

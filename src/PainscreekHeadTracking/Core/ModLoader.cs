@@ -30,18 +30,20 @@ namespace PainscreekHeadTracking
                 var thisAsm = typeof(ModLoader).Assembly;
                 Log($"PainscreekHeadTracking.dll loaded from: {thisAsm.Location}");
 
-                // Check for CameraUnlock.Core.dll
                 string? asmDir = Path.GetDirectoryName(thisAsm.Location);
                 if (asmDir != null)
                 {
-                    string coreDllPath = Path.Combine(asmDir, "CameraUnlock.Core.dll");
-                    Log($"Looking for CameraUnlock.Core.dll at: {coreDllPath}");
-                    Log($"CameraUnlock.Core.dll exists: {File.Exists(coreDllPath)}");
-
-                    if (!File.Exists(coreDllPath))
+                    foreach (string dll in new[] { "CameraUnlock.Core.dll", "CameraUnlock.Core.Unity.dll" })
                     {
-                        Log("FATAL: CameraUnlock.Core.dll NOT FOUND! Mod cannot function.");
-                        return;
+                        string dllPath = Path.Combine(asmDir, dll);
+                        Log($"Looking for {dll} at: {dllPath}");
+                        Log($"{dll} exists: {File.Exists(dllPath)}");
+
+                        if (!File.Exists(dllPath))
+                        {
+                            Log($"FATAL: {dll} NOT FOUND! Mod cannot function.");
+                            return;
+                        }
                     }
                 }
 

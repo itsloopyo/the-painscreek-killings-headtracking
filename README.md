@@ -4,6 +4,12 @@
 
 An unofficial head tracking mod for The Painscreek Killings that moves the view with your head while your mouse keeps control of the cursor, driven by OpenTrack over UDP, with no VR headset required.
 
+> **Settings have moved.** This version keeps its settings in `Painscreek_Data\Managed\CameraUnlock.ini`.
+> The first time it starts it reads your settings from the old
+> `Painscreek_Data\Managed\HeadTracking.cfg` into the new file, and leaves the old file as it was.
+> Sensitivity, axis inversion and reticle settings are gone: set sensitivity and inversion in
+> your tracker. [Configuration](#configuration) has the details.
+
 ## Features
 
 - **Decoupled look and aim** - head tracking moves the camera; aim stays on your mouse
@@ -40,7 +46,7 @@ The installer auto-detects your game install via the Steam registry. If it can't
 
 For users who prefer to place files by hand. This mod uses a Mono.Cecil bootstrap patcher: the mod DLLs are loaded by a small instruction injected into `Assembly-CSharp.dll`. There is no separate mod loader to install, but `Assembly-CSharp.dll` must be patched once.
 
-1. Download the `-installer.zip` from the [Releases page](https://github.com/itsloopyo/the-painscreek-killings-headtracking/releases) and extract it anywhere. Copy `PainscreekHeadTracking.dll`, `CameraUnlock.Core.dll`, and `Mono.Cecil.dll` from the extracted `mod\` folder into your game's `Painscreek_Data\Managed\`.
+1. Download the `-installer.zip` from the [Releases page](https://github.com/itsloopyo/the-painscreek-killings-headtracking/releases) and extract it anywhere. Copy `PainscreekHeadTracking.dll`, `CameraUnlock.Core.dll`, `CameraUnlock.Core.Unity.dll`, and `Mono.Cecil.dll` from the extracted `mod\` folder into your game's `Painscreek_Data\Managed\`.
 2. Patch `Assembly-CSharp.dll` once by running `install.cmd` from the same installer ZIP and pointing it at your game directory:
    ```
    install.cmd "C:\Path\To\The Painscreek Killings"
@@ -131,39 +137,108 @@ Headcam.
 
 `Page Down` / `Ctrl+Shift+H` toggles yaw mode between **world-space** (default, horizon-locked: yaw always rotates around the world up axis, so the horizon stays level when looking up or down) and **camera-local** (yaw rotates around the camera's current up axis, which produces a leaning/rolling effect at extreme pitches).
 
+The tracking mode and the yaw mode you pick are saved to `CameraUnlock.ini`, and the next start
+begins in them. `End` turns head tracking on and off for this session only; whether it is on at the
+next start is the `EnableOnStartup` setting.
+
+These are the default keys. Each action reads a list of keys from `CameraUnlock.ini`
+(`ToggleKey`, `CycleTrackingModeKey`, `YawModeKey`), and any key in the list fires it, so you can
+add, rebind or remove any of them, the chords included.
+
+The game's own cursor follows where the mouse aims while head tracking moves the view. It has no
+setting or toggle.
+
 ## Configuration
 
-The mod reads `HeadTracking.cfg` from `Painscreek_Data\Managed\`. Edit it with any text editor; section headers are decorative and can be reorganized freely.
+<!-- cameraunlock:config -->
+The mod reads its settings from `Painscreek_Data\Managed\CameraUnlock.ini` in the game folder, and creates the file when it starts and finds none. Edit it with any text editor.
+
+A setting set to `default` takes its value from `Defaults.ini`, which every head tracking mod that keeps its settings in `CameraUnlock.ini` reads. Head tracking mods that keep their settings in another file do not read it, and neither do earlier versions of this mod. Writing a value in place of `default` changes that setting for this game only. When the mod saves a setting that a hotkey changed in game, it writes the new value in place of `default`, so that setting no longer follows `Defaults.ini` in this game until you set it to `default` again.
+
+`Defaults.ini` is `%AppData%\CameraUnlock\Defaults.ini` on Windows; `$XDG_CONFIG_HOME/CameraUnlock/Defaults.ini` on Linux, or `~/.config/CameraUnlock/Defaults.ini` where `XDG_CONFIG_HOME` is not set, under Wine and Proton too; and `~/Library/Application Support/CameraUnlock/Defaults.ini` on macOS. The mod's log, where it writes one, names the file it read.
+
+When the mod starts and finds no `Defaults.ini`, it creates one holding the built-in values, unless Windows runs the game as a packaged app, or the game runs on Linux or macOS without Wine or Proton. The mod never changes `Defaults.ini` after that. Edit it with any text editor.
+
+Earlier versions of the mod kept these settings in `HeadTracking.cfg`, in the same folder. The first time this version starts and finds no `CameraUnlock.ini`, it reads your settings from `HeadTracking.cfg` and writes them into `CameraUnlock.ini`. It never changes `HeadTracking.cfg`, and does not read it again while `CameraUnlock.ini` exists.
+
+A setting that the defaults below set to `default` is written as `default` when the value imported for it equals its default at that start, which is the value `Defaults.ini` gives it, or the built-in value where `Defaults.ini` gives none. It then follows `Defaults.ini`. Every other setting is written with the value imported for it. `RotationEnabled` and `PositionEnabled` are one setting here, the tracking mode, so both are written as `default` or neither is.
+
+Comments, and keys the mod never read, are not carried over. Nor are these, where your old file had them:
+
+- Reticle settings, and a key that toggled the reticle.
+- A sensitivity, scale, deadzone, response curve or axis inversion you changed from its default. Set these in your tracker instead.
+- The setting for a feature that earlier versions shipped switched off while it was untested. It now follows the mod's default.
+
+An older version of the mod reads `HeadTracking.cfg` and never reads `CameraUnlock.ini`, so a setting you change after updating is not in `HeadTracking.cfg`.
+
+Deleting only `CameraUnlock.ini` makes the next start read `HeadTracking.cfg` again. To go back to the defaults, replace everything in `CameraUnlock.ini` with the defaults below. Every setting they set to `default` then follows `Defaults.ini`.
+
+On Linux and macOS without Wine or Proton, this version reads its settings and saves none: it creates no `CameraUnlock.ini`, reads your settings from `HeadTracking.cfg` again at every start while there is no `CameraUnlock.ini`, and a change made in game lasts until the game closes.
+
+The built-in value of each setting set to `default` below:
+
+- `UdpPort=4242`
+- `EnableOnStartup=true`
+- `WorldSpaceYaw=true`
+- `RotationEnabled=true`
+- `LocalSmoothing=0.0`
+- `RemoteSmoothing=0.15`
+- `PositionEnabled=true`
+- `ToggleKey=End, Ctrl+Shift+Y`
+- `CycleTrackingModeKey=PageUp, Ctrl+Shift+G`
+- `YawModeKey=PageDown, Ctrl+Shift+H`
+
+With every setting at its default, the file reads:
 
 ```ini
+; The Painscreek Killings head tracking settings.
+; Comments start with ; and go on their own line. Text after a value is part of the value.
+; Hotkeys are key names such as End, PageUp or Ctrl+Shift+Y. Separate several with commas; leave empty for none.
+; A setting set to default takes its value from Defaults.ini, which every head tracking mod
+; that keeps its settings in CameraUnlock.ini reads: %AppData%\CameraUnlock\Defaults.ini on
+; Windows, $XDG_CONFIG_HOME/CameraUnlock/Defaults.ini (normally ~/.config/CameraUnlock) on
+; Linux, under Wine and Proton too, and ~/Library/Application Support/CameraUnlock/Defaults.ini
+; on macOS. The log names the file it read. Write a value instead of default to change that
+; setting for this game only.
+
+[CameraUnlock]
+; Written by the mod. Leave this section in place.
+ConfigFormat=1
+
 [Network]
-UdpPort = 4242              ; UDP port for OpenTrack data
-EnableOnStartup = true      ; Start with head tracking enabled
-
-[Sensitivity]
-YawSensitivity = 1.0        ; Horizontal rotation multiplier (0.1 to 3.0)
-PitchSensitivity = 1.0      ; Vertical rotation multiplier (0.1 to 3.0)
-RollSensitivity = 1.0       ; Head tilt multiplier (0.1 to 3.0)
-InvertYaw = false
-InvertPitch = false
-InvertRoll = false
-
-[Smoothing]
-LocalSmoothing = 0.0        ; 0.0 to 1.0; used when the tracker runs on this machine
-RemoteSmoothing = 0.15      ; 0.0 to 1.0; used when the tracker is a network device
-
-[AimDecoupling]
-AimDecoupling = true        ; Decouple aim from head look direction
-ShowReticle = true          ; Draw an aim reticle that tracks the clean aim point
-ReticleColor = 1,1,1,1      ; Reticle color as R,G,B,A (default white opaque)
-
-[Keybindings]
-ToggleKey = End             ; Unity KeyCode name
-YawModeKey = PageDown       ; Unity KeyCode name
+; UDP port the mod receives tracker data on (OpenTrack protocol).
+UdpPort=default
 
 [General]
-WorldSpaceYaw = true        ; true = horizon-locked yaw; false = camera-local yaw
+; true: head tracking is on when the game starts. ToggleKey turns it on and off.
+EnableOnStartup=default
+; true: yaw turns around the world's up axis. false: around the camera's own up axis.
+WorldSpaceYaw=default
+; true: turning your head turns the view.
+; Tracking mode at startup, with PositionEnabled. The mode hotkey changes both.
+RotationEnabled=default
+
+[Smoothing]
+; Smoothing when the tracker runs on this PC. 0 is the least, 1 the most.
+LocalSmoothing=default
+; Smoothing when the tracker is another device on the network, such as a phone.
+; 0 is the least, 1 the most.
+RemoteSmoothing=default
+
+[Position]
+; true: moving your head moves the view.
+; Tracking mode at startup, with RotationEnabled. The mode hotkey changes both.
+PositionEnabled=default
+
+[Hotkeys]
+; Turns head tracking on and off.
+ToggleKey=default
+; Changes the tracking mode: rotation and position, rotation only, position only.
+CycleTrackingModeKey=default
+; Switches yaw between the world's up axis and the camera's own (WorldSpaceYaw).
+YawModeKey=default
 ```
+<!-- /cameraunlock:config -->
 
 Smoothing covers both rotation and position. Which of the two values applies is
 decided per connection from the packet source address: a tracker running on this
@@ -175,7 +250,7 @@ Switching between them takes effect without restarting the game.
 **Mod not loading:**
 - Check `HeadTracking.log` in the `Painscreek_Data\Managed\` folder for runtime status.
 - If the log doesn't exist, the patcher likely never ran. Check `HeadTracking_BOOT.log` in the same folder and `%TEMP%\HeadTracking_BOOT_ERROR.log` for patcher errors.
-- Make sure all three DLLs are present in the Managed folder.
+- Make sure all four DLLs are present in the Managed folder: `PainscreekHeadTracking.dll`, `CameraUnlock.Core.dll`, `CameraUnlock.Core.Unity.dll` and `Mono.Cecil.dll`.
 
 **No tracking response:**
 - Verify your tracker (OpenTrack or phone app) is running and shows movement in its own preview.
@@ -185,13 +260,16 @@ Switching between them takes effect without restarting the game.
 - Check Windows Firewall is not blocking UDP on port 4242.
 
 **Jittery / unstable tracking:**
-- Raise `RemoteSmoothing` (phone/network tracker) or `LocalSmoothing` (tracker on this PC) in `HeadTracking.cfg` (try 0.3 to 0.5 first).
+- Raise `RemoteSmoothing` (phone/network tracker) or `LocalSmoothing` (tracker on this PC) in `CameraUnlock.ini` (try 0.3 to 0.5 first).
 - For phone trackers on Wi-Fi, lower the phone's send rate, or use a wired connection / hotspot.
-- Lower the per-axis sensitivities if the source signal is noisy.
+- The mod has no sensitivity settings. Use your tracker's own filters and curves if the source signal is noisy.
 
 **Wrong rotation axis or feels off at extreme angles:**
 - Toggle world-space vs camera-local yaw with `Page Down` / `Ctrl+Shift+H`. World-space (default) is horizon-stable; camera-local follows the camera's current up axis.
-- Set `InvertPitch`, `InvertYaw`, or `InvertRoll` in the config to flip a reversed axis.
+- The mod has no inversion settings. Use OpenTrack's per-axis "Invert" switches in the Output mapping, or your tracker app's own.
+
+**A config edit had no effect:**
+- Make sure nothing follows the value on the line. Text after a value is part of the value, so a note on the same line makes the value unreadable and the setting keeps its default. Put a comment on a line of its own, starting with `;`. `HeadTracking.log` names each line the mod could not read.
 
 **Game crashes on startup:**
 - Restore `Assembly-CSharp.dll` from the `.original` backup, or verify game files through Steam.
@@ -199,11 +277,11 @@ Switching between them takes effect without restarting the game.
 
 ## Updating
 
-Download the new release and run `install.cmd` again. Your `HeadTracking.cfg` is preserved.
+Download the new release and run `install.cmd` again. Your settings in `CameraUnlock.ini` are kept.
 
 ## Uninstalling
 
-Run `uninstall.cmd` from the release folder. This removes the mod DLLs and restores the original `Assembly-CSharp.dll` from the `.original` backup. The bootstrap patch is reverted automatically. Use `uninstall.cmd /force` to remove everything even if the install state file says we did not install it.
+Run `uninstall.cmd` from the release folder. This removes the mod DLLs and restores the original `Assembly-CSharp.dll` from the `.original` backup. The bootstrap patch is reverted automatically. It leaves your settings, `Painscreek_Data\Managed\CameraUnlock.ini` and the old `Painscreek_Data\Managed\HeadTracking.cfg`, in place. Use `uninstall.cmd /force` to remove everything even if the install state file says we did not install it.
 
 ## Building from Source
 

@@ -101,3 +101,6 @@ tests/config_differential/data/** -text
 
 # The oracle is core's published source, kept byte for byte.
 tests/config_differential/oracle/*.cs -text
+
+# The committed config is compared byte for byte with the table's render, CRLF included.
+config/CameraUnlock.ini -text

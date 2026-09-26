@@ -8,7 +8,7 @@
 :: --- CONFIG BLOCK ---
 set "GAME_ID=painscreek-killings"
 set "MOD_DISPLAY_NAME=Painscreek Head Tracking"
-set "MOD_DLLS=PainscreekHeadTracking.dll CameraUnlock.Core.dll Mono.Cecil.dll"
+set "MOD_DLLS=PainscreekHeadTracking.dll CameraUnlock.Core.dll CameraUnlock.Core.Unity.dll Mono.Cecil.dll"
 set "MOD_INTERNAL_NAME=PainscreekHeadTracking"
 set "STATE_FILE=.headtracking-state.json"
 set "FRAMEWORK_TYPE=MonoCecil"
@@ -20,15 +20,15 @@ set "MOD_SEED_FILES="
 :: reinstall: paths relative to the game folder, quoted when one holds a space.
 :: Keep the line when it is blank, or the list another mod's uninstall.cmd set
 :: in the same console is used instead.
-set "PRESERVE_FILES="
+set "PRESERVE_FILES=Painscreek_Data\Managed\CameraUnlock.ini Painscreek_Data\Managed\HeadTracking.cfg"
 
 :: --- Loader-specific config (leave the ones that don't apply blank) ---
 :: MonoCecil: used to find + restore the original Assembly-CSharp.dll.
 set "MANAGED_SUBFOLDER=Painscreek_Data\Managed"
 set "ASSEMBLY_DLL=Assembly-CSharp.dll"
 set "PATCH_MARKER=HeadTracking_Patched_Painscreek_v2"
-:: MonoCecil: extra files to also remove from MANAGED_SUBFOLDER (config/log
-:: files left behind by the mod itself).
+:: MonoCecil: extra files to also remove from MANAGED_SUBFOLDER (log files
+:: left behind by the mod itself). The config files are in PRESERVE_FILES.
 set "MANAGED_EXTRAS=HeadTracking.log HeadTracking_BOOT.log"
 :: ASILoader: filename the ASI DLL was renamed to. Defaults to winmm.dll.
 set "ASI_LOADER_NAME=winmm.dll"

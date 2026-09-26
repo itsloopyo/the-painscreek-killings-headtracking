@@ -36,6 +36,7 @@
        mod would pull its game-facing code into this net48 host. -->
   <ItemGroup>
     <Compile Include="..\..\src\PainscreekHeadTracking\Legacy\*.cs" Link="Legacy\%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\PainscreekHeadTracking\Config\*.cs" Link="Config\%(Filename)%(Extension)" />
     <Compile Include="..\config_differential\**\*.cs" Exclude="..\config_differential\oracle\**" Link="config_differential\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="..\..\cameraunlock-core\csharp\testing\IniMutations.cs" Link="IniMutations.cs" />
   </ItemGroup>

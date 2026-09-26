@@ -56,7 +56,7 @@ $result = Invoke-DevDeployCecil `
     -BuildOutputPath $buildOutput `
     -ModDllName 'PainscreekHeadTracking.dll' `
     -ManagedSubfolder 'Painscreek_Data\Managed' `
-    -ExtraDlls @('CameraUnlock.Core.dll') `
+    -ExtraDlls @('CameraUnlock.Core.dll', 'CameraUnlock.Core.Unity.dll') `
     -GivenPath $GivenPath `
     -PatchMarker 'HeadTracking_Patched_Painscreek_v2' `
     -Patcher {
@@ -83,5 +83,6 @@ Write-DeploymentSuccess `
         "Page Up   - Cycle tracking mode (full / rotation-only / position-only)",
         "Page Down - Toggle yaw mode (world / local)",
         "",
-        "No nav cluster? Chords: Ctrl+Shift+ Y=Toggle G=Mode H=Yaw"
+        "No nav cluster? Chords: Ctrl+Shift+ Y=Toggle G=Mode H=Yaw",
+        "These are the default keys. Painscreek_Data\Managed\CameraUnlock.ini sets them."
     )
