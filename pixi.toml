@@ -25,7 +25,7 @@ build = { cmd = "dotnet build src/PainscreekHeadTracking/PainscreekHeadTracking.
 # assemblies it binds to at runtime. Stub/engine shape drift (a property
 # declared as a field, or the reverse) compiles cleanly and only fails in
 # game. Needs the game installed; skips and succeeds without it.
-verify-refs = { cmd = "powershell -ExecutionPolicy Bypass -File cameraunlock-core/scripts/verify-assembly-refs.ps1 -GameId painscreek-killings -BuildDir src/PainscreekHeadTracking/bin/Release", depends-on = ["build"] }
+verify-refs = { cmd = "powershell -ExecutionPolicy Bypass -File cameraunlock-core/scripts/verify-assembly-refs.ps1 -GameId painscreek-killings -BuildDir src/PainscreekHeadTracking/bin/Release/net35", depends-on = ["build"] }
 # Bump vendored mod-loader copies to latest upstream within pinned range.
 # Manual; commit the result. CI does not run this.
 update-deps = "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/update-deps.ps1"
