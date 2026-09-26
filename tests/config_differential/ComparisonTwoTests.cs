@@ -235,7 +235,7 @@ namespace PainscreekHeadTracking.Tests.Differential
             Assert.Contains(migration.Log, l => l.Contains("not carried: [Smoothing] Smoothing=0.0"));
         }
 
-        /// <summary>Every KeyCode a file can name converts to the key name that reads back as it.</summary>
+        /// <summary>Every Unity code in core's key table converts to the key name that reads back as it.</summary>
         [Fact]
         public void EveryUnityKeyCodeConvertsToItsName()
         {
@@ -256,6 +256,47 @@ namespace PainscreekHeadTracking.Tests.Differential
                 Assert.Equal(new KeyBinding(KeyModifiers.Ctrl | KeyModifiers.Shift, (int)KeyCode.H), bindings[1]);
             }
             Assert.Equal("Ctrl+Shift+G", LegacyConfigImport.HotkeyList(KeyCode.None, KeyCode.G));
+        }
+
+        /// <summary>
+        /// The test build's KeyCode is core's stub, which declares about a third of the game's
+        /// members, so the parse half of comparisons 1 and 2 reads a name the stub lacks
+        /// (Semicolon, JoystickButton0) as invalid on both sides, where the game reads it as a key.
+        /// This covers what those comparisons cannot, over the game's own KeyCode as
+        /// data/game-keycodes.tsv records it: every key the game parses a name to converts to a
+        /// hotkey list that reads back as that key, and every name the stub declares holds the
+        /// game's value.
+        /// </summary>
+        [Fact]
+        public void EveryGameKeyCodeConvertsToAListThatReadsBackAsIt()
+        {
+            string[] lines = File.ReadAllLines(Path.Combine(Path.Combine(Inputs.DifferentialDir(), "data"), "game-keycodes.tsv"));
+            Assert.Equal(321, lines.Length);
+            foreach (string line in lines)
+            {
+                string[] fields = line.Split('	');
+                Assert.Equal(2, fields.Length);
+                string name = fields[0];
+                int code = int.Parse(fields[1], System.Globalization.CultureInfo.InvariantCulture);
+
+                if (Enum.IsDefined(typeof(KeyCode), name))
+                {
+                    Assert.Equal(code, (int)(KeyCode)Enum.Parse(typeof(KeyCode), name));
+                }
+
+                string list = LegacyConfigImport.HotkeyList((KeyCode)code, KeyCode.Y);
+                KeyBinding[] bindings;
+                string error;
+                Assert.True(KeyBindings.TryParse(list, out bindings, out error), name + ": " + list + ": " + error);
+                if (code == 0)
+                {
+                    Assert.Equal(new[] { new KeyBinding(KeyModifiers.Ctrl | KeyModifiers.Shift, (int)KeyCode.Y) }, bindings);
+                    continue;
+                }
+                Assert.Equal(2, bindings.Length);
+                Assert.Equal(new KeyBinding(KeyModifiers.None, code), bindings[0]);
+                Assert.Equal(new KeyBinding(KeyModifiers.Ctrl | KeyModifiers.Shift, (int)KeyCode.Y), bindings[1]);
+            }
         }
 
         private static string Codec(float value)

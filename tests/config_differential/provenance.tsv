@@ -22,6 +22,13 @@ frozen reader	src/PainscreekHeadTracking/Legacy/LegacyConfigReader.cs	93985f00ac
 frozen reader	src/PainscreekHeadTracking/Legacy/LegacyIniParsing.cs	85c90782fa838adca8ba6c1f10f3c8ccd03fdabee2934348ddf4cb7d93231149
 frozen reader	src/PainscreekHeadTracking/Legacy/LegacyKeyCodes.cs	644a675ec99abfe0a77b755532ceb2ffc6648a6716117d5be414a8f69f31d54b
 frozen reader	src/PainscreekHeadTracking/Legacy/LegacyConfigKeys.cs	4971f93eec53fc378db75aaff04aa545eb228e704bfdf56080176087ad676f9f
+# The test build compiles against core's Unity stubs, whose KeyCode lacks most of the game's
+# members, so the frozen parse and the oracle's read a name like Semicolon as invalid where the game
+# reads a key. The game's KeyCode, every member name and value in declaration order, read by
+# reflection from its UnityEngine.dll (Steam build 16562334), is the data the key conversion test
+# runs over instead.
+game enum	Steam app 624270 build 16562334:Painscreek_Data/Managed/UnityEngine.dll	c292334968ea5ed3947ecd4d4bddad70fed57efb0d68e960d34e08897c6e3ad9
+game enum	tests/config_differential/data/game-keycodes.tsv	f37645dcdd3edcc2b3851d404fb25eaf36c4dabb616528fe351aad1b0fec7e5f
 # No build shipped HeadTracking.cfg in a ZIP or as a launcher-manifest.json seed, and LoadFromFile
 # writes nothing for a missing file, so no build wrote one either. A player who has the file made it
 # from the README's example, and the inputs are each version of that example up to e4b385b, taken
