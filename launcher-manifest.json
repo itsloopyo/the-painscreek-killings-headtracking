@@ -5,6 +5,7 @@
     "version": "0.0.0",
     "game_id": "painscreek-killings"
   },
+
   "strategy": "MonoCecil",
   "delivery_mode": "manifest",
 
@@ -23,6 +24,14 @@
       "marker": "HeadTracking_Patched_Painscreek_v2"
     }
   ],
+
+  "config": {
+    "path": "Painscreek_Data/Managed/CameraUnlock.ini",
+    "anchor": "game_root",
+    "legacy_source": "Painscreek_Data/Managed/HeadTracking.cfg",
+    "canonical_since": "0.2.0",
+    "per_game": {}
+  },
 
   "runtime_requirements": [],
   "dependencies": []

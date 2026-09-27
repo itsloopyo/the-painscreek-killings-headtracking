@@ -104,6 +104,13 @@ try {
 
 $tagName = "v$Version"
 
+try {
+    Assert-ReleaseNotBelowCanonicalSince -RepoRoot $projectDir -Version $Version
+} catch {
+    Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
+    exit 1
+}
+
 # Check if we're on main branch
 $currentBranch = git rev-parse --abbrev-ref HEAD
 if ($currentBranch -ne "main") {
