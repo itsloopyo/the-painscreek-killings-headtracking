@@ -55,6 +55,11 @@ if (-not (Test-Path $patcherSource)) {
     Write-Host "ERROR: Patcher source not found: $patcherSource" -ForegroundColor Red
     exit 1
 }
+$patcherMain = Join-Path $scriptDir "patcher\PatcherMain.cs"
+if (-not (Test-Path $patcherMain)) {
+    Write-Host "ERROR: Patcher wrapper not found: $patcherMain" -ForegroundColor Red
+    exit 1
+}
 
 # Create release directory
 if (-not (Test-Path $releaseDir)) {
@@ -136,6 +141,22 @@ Write-Host "  mod/Mono.Cecil.dll" -ForegroundColor Green
 Copy-Item $patcherSource -Destination $modDestDir -Force
 Write-Host "  mod/BootstrapPatcher.cs" -ForegroundColor Green
 
+# launcher-manifest.json names tools/BootstrapPatcher.exe as the patch tool, and the launcher
+# refuses a package that does not carry it.
+$nativeToolsDir = Join-Path $ghStagingDir "tools"
+New-Item -ItemType Directory -Path $nativeToolsDir -Force | Out-Null
+$csc = Join-Path $env:WINDIR "Microsoft.NET\Framework\v4.0.30319\csc.exe"
+if (-not (Test-Path $csc)) {
+    throw "csc.exe not found at $csc"
+}
+$patcherExe = Join-Path $nativeToolsDir "BootstrapPatcher.exe"
+& $csc /nologo /target:exe /out:$patcherExe /reference:$cecilPath $patcherSource $patcherMain
+if ($LASTEXITCODE -ne 0) {
+    throw "Failed to compile BootstrapPatcher.exe"
+}
+Copy-Item $cecilPath -Destination $nativeToolsDir -Force
+Write-Host "  tools/BootstrapPatcher.exe" -ForegroundColor Green
+Write-Host "  tools/Mono.Cecil.dll" -ForegroundColor Green
 
 # Copy documentation. LICENSE and THIRD-PARTY-NOTICES.md carry the copyright
 # notices that MIT requires to accompany every binary in this ZIP, so a missing
