@@ -2,13 +2,7 @@
 
 ![The Painscreek Killings running with this mod](https://raw.githubusercontent.com/itsloopyo/the-painscreek-killings-headtracking/main/assets/readme-clip.gif)
 
-An unofficial head tracking mod for The Painscreek Killings that moves the view with your head while your mouse keeps control of the cursor, driven by OpenTrack over UDP, with no VR headset required.
-
-> **Settings have moved.** This version keeps its settings in `Painscreek_Data\Managed\CameraUnlock.ini`.
-> The first time it starts it reads your settings from the old
-> `Painscreek_Data\Managed\HeadTracking.cfg` into the new file, and leaves the old file as it was.
-> Sensitivity, axis inversion and reticle settings are gone: set sensitivity and inversion in
-> your tracker. [Configuration](#configuration) has the details.
+An unofficial head tracking mod for The Painscreek Killings that moves the view with your head while your mouse keeps control of the cursor, driven by a webcam, phone, or any OpenTrack compatible tracker, with no VR headset required.
 
 ## Features
 
@@ -281,7 +275,7 @@ Download the new release and run `install.cmd` again. Your settings in `CameraUn
 
 ## Uninstalling
 
-Run `uninstall.cmd` from the release folder. This removes the mod DLLs and restores the original `Assembly-CSharp.dll` from the `.original` backup. The bootstrap patch is reverted automatically. It leaves your settings, `Painscreek_Data\Managed\CameraUnlock.ini` and the old `Painscreek_Data\Managed\HeadTracking.cfg`, in place. Use `uninstall.cmd /force` to remove everything even if the install state file says we did not install it.
+Run `uninstall.cmd` from the release folder. This removes the mod DLLs and restores the original `Assembly-CSharp.dll` from the `.original` backup. The bootstrap patch is reverted automatically. It leaves your settings in `Painscreek_Data\Managed\CameraUnlock.ini` in place. Use `uninstall.cmd /force` to remove everything even if the install state file says we did not install it.
 
 ## Building from Source
 
