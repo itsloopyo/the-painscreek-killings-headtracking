@@ -38,35 +38,54 @@ namespace PainscreekHeadTracking.Legacy
             LegacyConfig legacy = LegacyConfigReader.Read(input.Path, null, out found, out loadError);
             var dropped = new List<DroppedValue>();
             var poseShaping = new List<PoseShapingValue>();
-            Map(legacy, config, dropped, poseShaping);
+            var followsDefaultsIni = new LegacyFollowsDefaultsIni();
+            Map(legacy, config, dropped, poseShaping, followsDefaultsIni);
             if (loadError != null) return ImportResult.Refused("Config load error (using defaults): " + loadError);
-            return found ? ImportResult.Imported(dropped, poseShaping) : ImportResult.Absent(dropped, poseShaping);
+            return found
+                ? ImportResult.Imported(dropped, poseShaping, followsDefaultsIni.Concepts)
+                : ImportResult.Absent(dropped, poseShaping, followsDefaultsIni.Concepts);
         }
 
         /// <summary>
         /// The reader refuses NaN and infinity and keeps the port and the smoothing pair inside the
         /// canonical ranges, so no value reaches here that normalisation N2 would change. The file
-        /// has no sections the reader looks at, so a dropped value names none.
+        /// has no sections the reader looks at, so a dropped value names none. Every row is compared
+        /// with what the dev build ran on from a fresh <see cref="LegacyConfig"/>, so a setting the
+        /// player never changed follows Defaults.ini.
         /// </summary>
         public static void Map(LegacyConfig legacy, PainscreekConfig config, List<DroppedValue> dropped,
-            List<PoseShapingValue> poseShaping)
+            List<PoseShapingValue> poseShaping, LegacyFollowsDefaultsIni followsDefaultsIni)
         {
+            var shipped = new LegacyConfig();
+
             config.UdpPort = legacy.UdpPort;
+            followsDefaultsIni.Setting(ConfigConcepts.UdpPort, legacy.UdpPort, shipped.UdpPort);
 
             // The dev build started with head tracking on and in rotation and position whatever the
-            // file said: it parsed EnableOnStartup and never applied it.
+            // file said: it parsed EnableOnStartup and never applied it, so no player changed either.
             config.EnableOnStartup = true;
+            followsDefaultsIni.NotInLegacy(ConfigConcepts.EnableOnStartup);
             config.RotationEnabled = true;
             config.PositionEnabled = true;
+            followsDefaultsIni.TrackingMode(true);
 
             config.WorldSpaceYaw = legacy.WorldSpaceYaw;
+            followsDefaultsIni.Setting(ConfigConcepts.WorldSpaceYaw, legacy.WorldSpaceYaw, shipped.WorldSpaceYaw);
 
-            config.ToggleKeyName = HotkeyList(legacy.ToggleKeyName, LegacyKeyCodes.ToggleDefault, LegacyKeyCodes.ToggleChordLetter);
-            config.CycleTrackingModeKeyName = HotkeyList(LegacyKeyCodes.CycleTrackingMode, LegacyKeyCodes.CycleTrackingModeChordLetter);
-            config.YawModeKeyName = HotkeyList(legacy.YawModeKeyName, LegacyKeyCodes.YawModeDefault, LegacyKeyCodes.YawModeChordLetter);
+            config.ToggleKeyName = HotkeyList(legacy.ToggleKeyName, LegacyKeyCodes.ToggleDefault, LegacyKeyCodes.ToggleChordLetter,
+                "ToggleKey", dropped);
+            followsDefaultsIni.Setting(ConfigConcepts.ToggleKey, PollsTheDefault(legacy.ToggleKeyName, LegacyKeyCodes.ToggleDefault));
+            config.CycleTrackingModeKeyName = HotkeyList(LegacyKeyCodes.CycleTrackingMode, LegacyKeyCodes.CycleTrackingModeChordLetter,
+                "CycleTrackingModeKey", dropped);
+            followsDefaultsIni.NotInLegacy(ConfigConcepts.CycleTrackingModeKey);
+            config.YawModeKeyName = HotkeyList(legacy.YawModeKeyName, LegacyKeyCodes.YawModeDefault, LegacyKeyCodes.YawModeChordLetter,
+                "YawModeKey", dropped);
+            followsDefaultsIni.Setting(ConfigConcepts.YawModeKey, PollsTheDefault(legacy.YawModeKeyName, LegacyKeyCodes.YawModeDefault));
 
             config.LocalSmoothing = legacy.LocalSmoothing;
+            followsDefaultsIni.Setting(ConfigConcepts.LocalSmoothing, legacy.LocalSmoothing, shipped.LocalSmoothing);
             config.RemoteSmoothing = legacy.RemoteSmoothing;
+            followsDefaultsIni.Setting(ConfigConcepts.RemoteSmoothing, legacy.RemoteSmoothing, shipped.RemoteSmoothing);
             PositionSettings p = config.Position;
             config.Position = new PositionSettings(
                 p.SensitivityX, p.SensitivityY, p.SensitivityZ,
@@ -80,6 +99,13 @@ namespace PainscreekHeadTracking.Legacy
             LegacyPoseShaping.Record(legacy.InvertYaw, ShippedInvert, "", "InvertYaw", poseShaping, dropped);
             LegacyPoseShaping.Record(legacy.InvertPitch, ShippedInvert, "", "InvertPitch", poseShaping, dropped);
             LegacyPoseShaping.Record(legacy.InvertRoll, ShippedInvert, "", "InvertRoll", poseShaping, dropped);
+
+            // The dev build parsed the aim decoupling switch and never read it: aim was decoupled
+            // whatever the file said, as it is now. A player who had it off still sees the drop.
+            if (!legacy.AimDecouplingEnabled)
+            {
+                dropped.Add(new DroppedValue(DropRule.CoupledAim, "", "AimDecoupling", "false"));
+            }
 
             // The dev build parsed ShowReticle and ReticleColor and drew no reticle of its own; it
             // moved the game's cursor to the aim whatever they said. Only a player who had set them
@@ -106,7 +132,8 @@ namespace PainscreekHeadTracking.Legacy
         /// the list as it was, which no hotkey list reads, and the owner defers the import naming
         /// the line.
         /// </remarks>
-        public static string HotkeyList(string keyName, KeyCode fallback, KeyCode chordLetter)
+        public static string HotkeyList(string keyName, KeyCode fallback, KeyCode chordLetter, string legacyKey,
+            ICollection<DroppedValue> dropped)
         {
             KeyCode primary;
             try
@@ -117,34 +144,48 @@ namespace PainscreekHeadTracking.Legacy
             {
                 return keyName + ", " + Chord(chordLetter);
             }
-            return HotkeyList(primary, chordLetter);
+            return HotkeyList(primary, chordLetter, legacyKey, dropped);
         }
 
         /// <summary>
-        /// A key code the key table names no key for is written as its number, which no hotkey list
-        /// reads, so the owner defers that import and says which line.
+        /// A Ctrl, Shift or Alt key on its own is left unbound and recorded under
+        /// <paramref name="legacyKey"/> (normalisation N3), and the chord stays. A key code the key
+        /// table names no key for is written as its number, which no hotkey list reads, so the owner
+        /// defers that import and says which line.
         /// </summary>
-        public static string HotkeyList(KeyCode primary, KeyCode chordLetter)
+        public static string HotkeyList(KeyCode primary, KeyCode chordLetter, string legacyKey, ICollection<DroppedValue> dropped)
         {
-            if (primary == KeyCode.None) return Chord(chordLetter);
-            return KeyText((int)primary) + ", " + Chord(chordLetter);
+            string key;
+            try
+            {
+                key = LegacyNormalisations.KeyCodeToBindings((int)primary, "", legacyKey, dropped);
+            }
+            catch (ArgumentException)
+            {
+                key = ((int)primary).ToString(CultureInfo.InvariantCulture);
+            }
+            return key.Length == 0 ? Chord(chordLetter) : key + ", " + Chord(chordLetter);
+        }
+
+        /// <summary>
+        /// Whether the dev build polled its default key for this name: a name it could not parse fell
+        /// back to the default, and one past the int range left it polling nothing.
+        /// </summary>
+        private static bool PollsTheDefault(string keyName, KeyCode fallback)
+        {
+            try
+            {
+                return LegacyKeyCodes.Parse(keyName, fallback, null) == fallback;
+            }
+            catch (OverflowException)
+            {
+                return false;
+            }
         }
 
         private static string Chord(KeyCode chordLetter)
         {
             return KeyBindings.Format(new[] { new KeyBinding(KeyModifiers.Ctrl | KeyModifiers.Shift, (int)chordLetter) });
-        }
-
-        private static string KeyText(int unityKeyCode)
-        {
-            try
-            {
-                return KeyBindings.Format(new[] { new KeyBinding(KeyModifiers.None, unityKeyCode) });
-            }
-            catch (ArgumentException)
-            {
-                return unityKeyCode.ToString(CultureInfo.InvariantCulture);
-            }
         }
     }
 }
