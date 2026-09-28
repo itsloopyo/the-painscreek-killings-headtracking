@@ -10,7 +10,6 @@
 - Comments, and keys the mod never read, are not carried over. Nor are these, where your old file had them:
   - A sensitivity, scale, deadzone, response curve or axis inversion you changed from its default. Set these in your tracker instead.
   - Reticle settings, and a key that toggled the reticle.
-  - The setting for a feature that earlier versions shipped switched off while it was untested. It now follows the mod's default.
   - A hotkey set to Ctrl, Shift or Alt on its own. That key goes down before the key of any chord made with it, so the hotkey is left unbound, and it keeps its Ctrl+Shift chord.
 - `EnableOnStartup`, `RecenterKey` and `AimDecoupling` in `HeadTracking.cfg` are not carried over either. Earlier versions read them and did nothing with them: head tracking always started on, there was no recenter key, and aim was always decoupled.
 - An older version of the mod reads `HeadTracking.cfg` and never reads `CameraUnlock.ini`, so a setting you change after updating is not in `HeadTracking.cfg`.
@@ -23,19 +22,6 @@
 - Where the key parse earlier versions ran fails on an old file's `ToggleKey` or `YawModeKey` (under .NET a number too large to be a key code does this, for example `ToggleKey = 99999999999`), the file is not imported. The mod runs that session with the Ctrl+Shift chord for that action, saves nothing, says so in `HeadTracking.log`, and tries again at the next start.
 - `uninstall.cmd` leaves `CameraUnlock.ini` and `HeadTracking.cfg` in place.
 - The mod ships a fourth DLL, `CameraUnlock.Core.Unity.dll`, which reads the hotkey lists. The installer, the uninstaller and Lopari's manifest carry it.
-
-- pin every GitHub Action to a commit SHA with a trailing version comment
-  instead of a mutable tag.
-- the `[DIAG]` status line in `HeadTracking.log` is written when the state
-  changes rather than every 5 seconds. A one-hour session used to add ~68 KB
-  restating the same three flags.
-- Removed recentring from the mod entirely, along with the `Home` / `Ctrl+Shift+T`
-  hotkey and the `RecenterKey` config entry. The tracker app owns centring, so a
-  mod-side centre was a second centre in series with the tracker's own and the two
-  drifted apart. The tracker pose is now applied as sent. Centre in your tracker app
-  instead: opentrack's Center bind, or the CENTER button in Headcam.
-- replace the single `Smoothing` config key with `LocalSmoothing` (default 0.0) and `RemoteSmoothing` (default 0.15), selected per connection from the packet source address and covering both rotation and position
-- remove the hidden 0.15 baseline smoothing floor, so a tracker running on this PC now gets zero-latency tracking by default
 
 ### Added
 
@@ -50,9 +36,6 @@
 - The reticle settings, `ShowReticle` and `ReticleColor`. Earlier versions read them and drew no reticle of their own: the game's cursor follows the aim, as it always did.
 - The sensitivity and axis inversion settings: `YawSensitivity`, `PitchSensitivity`, `RollSensitivity`, `InvertYaw`, `InvertPitch` and `InvertRoll`. Set these in your tracker app instead.
 - With these settings at their shipped defaults the camera moves as it did before.
-- stop tracking `tools/Mono.Cecil.dll`. It is extracted from the vendored
-  `.nupkg` by `scripts/ensure-cecil.ps1`, so the committed copy was a duplicate
-  build artifact; `tools/` is now gitignored.
 
 ### Fixed
 
@@ -66,13 +49,6 @@
 - correct `THIRD-PARTY-NOTICES.md`: the Mono.Cecil version rendered as a literal
   `:` placeholder, and cameraunlock-core was described as compiled into
   `PainscreekHeadTracking.dll` when it ships as its own DLL.
-- `HeadTracking_BOOT.log` and `%TEMP%\HeadTracking_BOOT_ERROR.log` now start
-  fresh on every launch. They were appended to, so the boot log a user sends in
-  carried every previous session's lines and the current run had to be picked
-  out of the pile.
-- an error inside the camera restore hook is logged once per distinct message
-  instead of every frame. That path runs in `OnPostRender`, so a persistent
-  failure wrote roughly 17 MB an hour into `HeadTracking.log` at 60fps.
 
 ## [0.1.0] - 2026-08-20
 
