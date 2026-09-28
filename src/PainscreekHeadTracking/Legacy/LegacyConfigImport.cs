@@ -127,9 +127,8 @@ namespace PainscreekHeadTracking.Legacy
         /// </summary>
         /// <remarks>
         /// A name Enum.Parse reads as a number past the int range made ParseKeyCode throw, and that
-        /// build then ran with no receiver at all. No approved rule covers it, so the name goes into
-        /// the list as it was, which no hotkey list reads, and the owner defers the import naming
-        /// the line.
+        /// build then ran with no receiver at all. It names no key, so it is left unbound and
+        /// recorded as KeyCodeOutOfRange (normalisation N1), and the chord stays.
         /// </remarks>
         public static string HotkeyList(string keyName, KeyCode fallback, KeyCode chordLetter, string legacyKey,
             ICollection<DroppedValue> dropped)
@@ -141,7 +140,8 @@ namespace PainscreekHeadTracking.Legacy
             }
             catch (OverflowException)
             {
-                return keyName + ", " + Chord(chordLetter);
+                dropped.Add(new DroppedValue(DropRule.KeyCodeOutOfRange, "", legacyKey, keyName));
+                return Chord(chordLetter);
             }
             return HotkeyList(primary, chordLetter, legacyKey, dropped);
         }

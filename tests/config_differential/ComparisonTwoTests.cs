@@ -43,22 +43,42 @@ namespace PainscreekHeadTracking.Tests.Differential
         });
 
         /// <summary>
-        /// The inputs whose ToggleKey or YawModeKey made the dev build's ParseKeyCode throw, which
-        /// left that build with no receiver. No approved rule covers the name, so the owner defers
-        /// these imports: the session runs on what the import gave, nothing is written, and the
-        /// import runs again at the next start.
+        /// Normalisation N1 on a key name: where Enum.Parse read the dev build's ToggleKey or
+        /// YawModeKey as a number past the int range, its ParseKeyCode threw and that build ran with
+        /// no receiver. No key has that name, so the import leaves it unbound, logs the drop and
+        /// keeps the chord, and the file migrates.
         /// </summary>
-        private static readonly Lazy<string[]> Deferred = new Lazy<string[]>(() =>
-            Inputs.All()
-                .Where(i => HotkeyRows.Any(row => Oracle.Run(i).Startup[row].StartsWith("throws ", StringComparison.Ordinal)))
-                .Select(i => i.Name)
-                .OrderBy(n => n, StringComparer.Ordinal)
-                .ToArray());
-
         [Fact]
-        public void OnlyAKeyNamePastTheIntRangeIsDeferred()
+        public void AKeyNamePastTheIntRangeImportsAsUnboundAndKeepsTheChord()
         {
-            Assert.Equal(new[] { "corpus ToggleKey: value 1100 characters", "corpus YawModeKey: value 1100 characters" }, Deferred.Value);
+            DifferentialInput[] overflowing = Inputs.All()
+                .Where(i => HotkeyRows.Any(row => Oracle.Run(i).Startup[row].StartsWith("throws ", StringComparison.Ordinal)))
+                .OrderBy(i => i.Name, StringComparer.Ordinal)
+                .ToArray();
+            Assert.Equal(new[] { "corpus ToggleKey: value 1100 characters", "corpus YawModeKey: value 1100 characters" },
+                overflowing.Select(i => i.Name));
+            foreach (DifferentialInput input in overflowing)
+            {
+                bool toggle = input.Name.StartsWith("corpus ToggleKey:", StringComparison.Ordinal);
+                string row = toggle ? "ToggleKey" : "YawModeKey";
+                string chord = toggle ? "Ctrl+Shift+Y" : "Ctrl+Shift+H";
+                LegacyConfig old = Oracle.Run(input).Config;
+                string keyName = toggle ? old.ToggleKeyName : old.YawModeKeyName;
+                MigrationOutcome migration = MigrationOutcome.Run(input, null, false);
+                Assert.Equal(ConfigLoadStatus.Migrated, migration.Status);
+                Assert.Contains("\r\n" + row + "=" + chord + "\r\n", Encoding.ASCII.GetString(migration.Created!));
+                Assert.Contains(migration.Log, l => l.Contains(row + "=" + keyName + ", it is not a key code Unity names"));
+            }
+
+            var dropped = new List<DroppedValue>();
+            string name = new string('9', 1100);
+            Assert.Equal("Ctrl+Shift+Y",
+                LegacyConfigImport.HotkeyList(name, LegacyKeyCodes.ToggleDefault, LegacyKeyCodes.ToggleChordLetter, "ToggleKey", dropped));
+            DroppedValue drop = Assert.Single(dropped);
+            Assert.Equal(DropRule.KeyCodeOutOfRange, drop.Rule);
+            Assert.Equal("", drop.Section);
+            Assert.Equal("ToggleKey", drop.Key);
+            Assert.Equal(name, drop.Value);
         }
 
         [Fact]
@@ -77,7 +97,6 @@ namespace PainscreekHeadTracking.Tests.Differential
         {
             List<DifferentialInput> inputs = Inputs.All().ToList();
             var failures = new ConcurrentBag<string>();
-            var deferred = new ConcurrentBag<string>();
             var created = new ConcurrentDictionary<string, byte[]>(StringComparer.Ordinal);
             byte[] committed = File.ReadAllBytes(ConfigTests.Committed());
             var defaults = new PainscreekConfig();
@@ -102,25 +121,17 @@ namespace PainscreekHeadTracking.Tests.Differential
                         continue;
                     }
 
-                    if (migration.Status == ConfigLoadStatus.Deferred)
-                    {
-                        if (!readOnly) deferred.Add(input.Name);
-                        if (!migration.Reason.Contains("cannot be converted")) failures.Add(name + ": deferred: " + migration.Reason);
-                    }
-                    else if (migration.Status != ConfigLoadStatus.Migrated)
+                    if (migration.Status != ConfigLoadStatus.Migrated)
                     {
                         failures.Add(name + ": " + migration.Status + ": " + migration.Reason);
                         continue;
                     }
-                    else
+                    created[ComparisonOneTests.Sha256(migration.Created!)] = migration.Created!;
+                    string text = Encoding.ASCII.GetString(migration.Created!);
+                    foreach (ConceptDescriptor concept in import.Result.FollowsDefaultsIni)
                     {
-                        created[ComparisonOneTests.Sha256(migration.Created!)] = migration.Created!;
-                        string text = Encoding.ASCII.GetString(migration.Created!);
-                        foreach (ConceptDescriptor concept in import.Result.FollowsDefaultsIni)
-                        {
-                            if (!text.Contains("\r\n" + concept.Key + "=default\r\n"))
-                                failures.Add(name + ": " + concept.Key + " follows Defaults.ini and is not written default");
-                        }
+                        if (!text.Contains("\r\n" + concept.Key + "=default\r\n"))
+                            failures.Add(name + ": " + concept.Key + " follows Defaults.ini and is not written default");
                     }
                     if (imported != migrated) failures.Add(name + ":\n" + ComparisonOneTests.Diff(imported, migrated));
                 }
@@ -132,7 +143,6 @@ namespace PainscreekHeadTracking.Tests.Differential
             {
                 File.WriteAllBytes(Path.Combine(MigratedDir.Value, file.Key + ".ini"), file.Value);
             }
-            Assert.Equal(Deferred.Value, deferred.OrderBy(n => n, StringComparer.Ordinal));
         }
 
         /// <summary>
@@ -167,8 +177,7 @@ namespace PainscreekHeadTracking.Tests.Differential
 
         /// <summary>
         /// The map proof: on every input, what the converted mod runs on from the import is what the
-        /// dev build ran on, apart from exactly the values the approved changes drop. Where that
-        /// build's key parse threw, the import writes the name as it was beside the chord.
+        /// dev build ran on, apart from exactly the values the approved changes drop.
         /// </summary>
         [Fact]
         public void TheImportKeepsEverySettingButTheApprovedDrops()
@@ -185,7 +194,7 @@ namespace PainscreekHeadTracking.Tests.Differential
 
                 var before = new SortedDictionary<string, string>(oracle.Startup, StringComparer.Ordinal);
                 var expectedDrops = new List<string>();
-                var modifierDrops = new List<string>();
+                var keyDrops = new List<string>();
                 Action<string, string, KeyCode, KeyCode> hotkey = (key, keyName, fallback, letter) =>
                 {
                     KeyCode primary;
@@ -195,11 +204,13 @@ namespace PainscreekHeadTracking.Tests.Differential
                     }
                     catch (OverflowException)
                     {
+                        before[key] = LegacyStartup.Hotkey(KeyCode.None, letter);
+                        keyDrops.Add("KeyCodeOutOfRange  " + key + " " + keyName);
                         return;
                     }
                     if (!IsModifier(primary)) return;
                     before[key] = LegacyStartup.Hotkey(KeyCode.None, letter);
-                    modifierDrops.Add("ModifierKey  " + key + " " + primary);
+                    keyDrops.Add("ModifierKey  " + key + " " + primary);
                 };
                 hotkey("ToggleKey", old.ToggleKeyName, LegacyKeyCodes.ToggleDefault, LegacyKeyCodes.ToggleChordLetter);
                 hotkey("YawModeKey", old.YawModeKeyName, LegacyKeyCodes.YawModeDefault, LegacyKeyCodes.YawModeChordLetter);
@@ -208,15 +219,10 @@ namespace PainscreekHeadTracking.Tests.Differential
                 foreach (string key in before.Keys)
                 {
                     if (key == "RotationSensitivity" || key == "RotationInversion") continue;
-                    string expected = before[key];
-                    if (expected.StartsWith("throws ", StringComparison.Ordinal))
-                    {
-                        expected = (key == "ToggleKey" ? old.ToggleKeyName + ", Ctrl+Shift+Y" : old.YawModeKeyName + ", Ctrl+Shift+H");
-                    }
-                    if (expected != after[key]) failures.Add(input.Name + ": " + key + " " + expected + " -> " + after[key]);
+                    if (before[key] != after[key]) failures.Add(input.Name + ": " + key + " " + before[key] + " -> " + after[key]);
                 }
 
-                expectedDrops.AddRange(modifierDrops);
+                expectedDrops.AddRange(keyDrops);
                 var expectedShaping = new List<string>();
                 Action<string, string, string, bool> shaping = (key, value, shipped, folded) =>
                 {

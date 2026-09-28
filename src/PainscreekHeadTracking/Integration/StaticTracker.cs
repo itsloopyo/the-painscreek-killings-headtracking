@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using CameraUnlock.Core.Config;
 using CameraUnlock.Core.Data;
@@ -306,23 +305,13 @@ namespace PainscreekHeadTracking
             return loaded.Config;
         }
 
-        // The table's hotkey codec has read every list the file holds, so a list that does not
-        // parse reaches here only from a legacy import the owner deferred: a key the key table
-        // names no key for, which the import writes as it was. The dev build still fired the chord
-        // beside such a key, so the items that parse are bound and the rest are logged.
         private static KeyBinding[] ParseKeys(string key, string text)
         {
             KeyBinding[] bindings;
             string error;
-            if (KeyBindings.TryParse(text, out bindings, out error)) return bindings;
-
-            var kept = new List<KeyBinding>();
-            foreach (string item in text.Split(','))
-            {
-                if (KeyBindings.TryParse(item, out bindings, out error)) kept.AddRange(bindings);
-                else Log("[Config] [Hotkeys] " + key + ": " + error + ", so it is not bound this session");
-            }
-            return kept.ToArray();
+            if (!KeyBindings.TryParse(text, out bindings, out error))
+                throw new InvalidOperationException("[Hotkeys] " + key + "=" + text + ": " + error);
+            return bindings;
         }
 
         /// <summary>
