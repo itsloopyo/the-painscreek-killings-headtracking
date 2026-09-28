@@ -138,9 +138,6 @@ foreach ($dll in $modDlls) {
 Copy-Item $cecilPath -Destination $modDestDir -Force
 Write-Host "  mod/Mono.Cecil.dll" -ForegroundColor Green
 
-Copy-Item $patcherSource -Destination $modDestDir -Force
-Write-Host "  mod/BootstrapPatcher.cs" -ForegroundColor Green
-
 # launcher-manifest.json names tools/BootstrapPatcher.exe as the patch tool, and the launcher
 # refuses a package that does not carry it.
 $nativeToolsDir = Join-Path $ghStagingDir "tools"
@@ -155,8 +152,10 @@ if ($LASTEXITCODE -ne 0) {
     throw "Failed to compile BootstrapPatcher.exe"
 }
 Copy-Item $cecilPath -Destination $nativeToolsDir -Force
+Copy-Item $patcherSource -Destination $nativeToolsDir -Force
 Write-Host "  tools/BootstrapPatcher.exe" -ForegroundColor Green
 Write-Host "  tools/Mono.Cecil.dll" -ForegroundColor Green
+Write-Host "  tools/BootstrapPatcher.cs" -ForegroundColor Green
 
 # Copy documentation. LICENSE and THIRD-PARTY-NOTICES.md carry the copyright
 # notices that MIT requires to accompany every binary in this ZIP, so a missing
