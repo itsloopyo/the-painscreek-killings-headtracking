@@ -386,6 +386,32 @@ namespace PainscreekHeadTracking.Tests.Differential
         }
 
         /// <summary>
+        /// Normalisation N1: a key code Unity names no key for is left unbound, the drop is logged,
+        /// and the action keeps its Ctrl+Shift chord. A file cannot reach it: the dev build's parse
+        /// gave its default key for a number Unity's KeyCode does not define, and so does the import,
+        /// so the file migrates holding that default.
+        /// </summary>
+        [Fact]
+        public void AKeyCodeUnityNamesNoKeyForImportsAsUnboundAndKeepsTheChord()
+        {
+            foreach (int code in new[] { -1, 1, 2, 10, 999 })
+            {
+                Assert.False(KeyBindings.HasName(code), code + " names a key");
+                var dropped = new List<DroppedValue>();
+                Assert.Equal("Ctrl+Shift+H", LegacyConfigImport.HotkeyList((KeyCode)code, KeyCode.H, "YawModeKey", dropped));
+                DroppedValue drop = Assert.Single(dropped);
+                Assert.Equal(DropRule.KeyCodeOutOfRange, drop.Rule);
+                Assert.Equal("", drop.Section);
+                Assert.Equal("YawModeKey", drop.Key);
+                Assert.Equal(code.ToString(System.Globalization.CultureInfo.InvariantCulture), drop.Value);
+            }
+
+            var none = new List<DroppedValue>();
+            Assert.Equal("End, Ctrl+Shift+Y", LegacyConfigImport.HotkeyList("999", LegacyKeyCodes.ToggleDefault, LegacyKeyCodes.ToggleChordLetter, "ToggleKey", none));
+            Assert.Empty(none);
+        }
+
+        /// <summary>
         /// Normalisation N3: a Ctrl, Shift or Alt key on its own is left unbound, the drop is logged,
         /// and the action keeps its Ctrl+Shift chord.
         /// </summary>

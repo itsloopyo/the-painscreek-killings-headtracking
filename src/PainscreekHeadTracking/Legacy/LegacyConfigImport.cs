@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Text;
 using CameraUnlock.Core.Config;
 using CameraUnlock.Core.Data;
@@ -149,21 +148,14 @@ namespace PainscreekHeadTracking.Legacy
 
         /// <summary>
         /// A Ctrl, Shift or Alt key on its own is left unbound and recorded under
-        /// <paramref name="legacyKey"/> (normalisation N3), and the chord stays. A key code the key
-        /// table names no key for is written as its number, which no hotkey list reads, so the owner
-        /// defers that import and says which line.
+        /// <paramref name="legacyKey"/> (normalisation N3), and the chord stays. So is a key code the
+        /// key table names no key for, recorded as KeyCodeOutOfRange (normalisation N1). The dev
+        /// build's parse gave its default key for any name Unity's KeyCode does not define, so no
+        /// file reaches that case.
         /// </summary>
         public static string HotkeyList(KeyCode primary, KeyCode chordLetter, string legacyKey, ICollection<DroppedValue> dropped)
         {
-            string key;
-            try
-            {
-                key = LegacyNormalisations.KeyCodeToBindings((int)primary, "", legacyKey, dropped);
-            }
-            catch (ArgumentException)
-            {
-                key = ((int)primary).ToString(CultureInfo.InvariantCulture);
-            }
+            string key = LegacyNormalisations.KeyCodeToBindings((int)primary, "", legacyKey, dropped);
             return key.Length == 0 ? Chord(chordLetter) : key + ", " + Chord(chordLetter);
         }
 
